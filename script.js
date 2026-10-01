@@ -721,6 +721,20 @@ class ClockApp {
       this.settingsPanel.classList.remove('open');
     });
 
+    // タブナビゲーションの切り替え（プロパティが枠内にすっきり収まる）
+    const tabBtns = document.querySelectorAll('.settings-tabs-nav .tab-btn');
+    const tabPanes = document.querySelectorAll('.settings-tab-content-area .tab-pane');
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.tab;
+        tabBtns.forEach(b => b.classList.remove('active'));
+        tabPanes.forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        const targetPane = document.getElementById(targetId);
+        if (targetPane) targetPane.classList.add('active');
+      });
+    });
+
     // モード切り替え (WebM / PNG)
     const handleModeChange = (mode) => {
       if (this.assetManager.setMode(mode)) {
