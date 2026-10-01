@@ -172,6 +172,26 @@
           </details>
         </div>
 
+        <!-- 12種類の個別パターンテスト再生 -->
+        <div class="control-group">
+          <label class="sub-label">個別パターンのテスト再生（12種類）</label>
+          <p class="section-help">タップするとそのパターンのアニメーションと音が再生されます</p>
+          <div class="pattern-test-grid">
+            <button type="button" class="btn-pat-test" data-from="0" data-to="1">0→1</button>
+            <button type="button" class="btn-pat-test" data-from="1" data-to="2">1→2</button>
+            <button type="button" class="btn-pat-test" data-from="2" data-to="3">2→3</button>
+            <button type="button" class="btn-pat-test" data-from="3" data-to="4">3→4</button>
+            <button type="button" class="btn-pat-test" data-from="4" data-to="5">4→5</button>
+            <button type="button" class="btn-pat-test" data-from="5" data-to="6">5→6</button>
+            <button type="button" class="btn-pat-test" data-from="6" data-to="7">6→7</button>
+            <button type="button" class="btn-pat-test" data-from="7" data-to="8">7→8</button>
+            <button type="button" class="btn-pat-test" data-from="8" data-to="9">8→9</button>
+            <button type="button" class="btn-pat-test" data-from="9" data-to="0">9→0</button>
+            <button type="button" class="btn-pat-test" data-from="5" data-to="0">5→0</button>
+            <button type="button" class="btn-pat-test" data-from="2" data-to="0">2→0</button>
+          </div>
+        </div>
+
         <div class="guide-box">
           <h3>💡 素材配置ルール</h3>
           <p><strong>動画:</strong> <code>assets/webm/0_to_1.webm</code> など</p>
@@ -192,23 +212,23 @@
           <input type="range" id="rng-scale" min="0.5" max="1.6" step="0.05" value="1.0">
         </div>
 
-        <!-- 数字同士の間隔（前後） -->
+        <!-- 数字同士の間隔（前後: -100px 〜 100px） -->
         <div class="slider-row">
           <div class="slider-label-row">
             <span>数字前後の間隔（文字間）</span>
             <span id="txt-digit-gap-value" class="value-badge">0px</span>
           </div>
-          <input type="range" id="rng-digit-gap" min="-30" max="60" step="2" value="0">
-          <span class="slider-hint">各数字（桁）同士の左右の空きを調整します</span>
+          <input type="range" id="rng-digit-gap" min="-100" max="100" step="2" value="0">
+          <span class="slider-hint">各数字（桁）同士の左右の空き（-100pxまで重ねられます）</span>
         </div>
 
-        <!-- コロン前後の間隔 -->
+        <!-- コロン前後の間隔: -100px 〜 100px -->
         <div class="slider-row">
           <div class="slider-label-row">
             <span>コロン前後の間隔</span>
             <span id="txt-colon-margin-value" class="value-badge">0px</span>
           </div>
-          <input type="range" id="rng-colon-margin" min="-30" max="80" step="2" value="0">
+          <input type="range" id="rng-colon-margin" min="-100" max="100" step="2" value="0">
           <span class="slider-hint">コロン（:）と数字の間の左右余白を調整します</span>
         </div>
 
@@ -290,6 +310,7 @@
            タブ④: 音（サウンド）設定
            ============================================================== -->
       <div class="tab-pane" id="tab-sound">
+        <!-- 動画音声と全体音量 -->
         <div class="setting-row">
           <div>
             <div>素材動画の音を鳴らす</div>
@@ -301,42 +322,83 @@
           </label>
         </div>
 
-        <div class="setting-row">
-          <div>
-            <div>毎秒のカウント音 (SE)</div>
-            <div class="setting-subtext">秒が切り替わる瞬間に再生</div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="chk-tick-sound">
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <div class="control-group" id="group-sound-type">
-          <label class="sub-label">サウンド音色</label>
-          <select id="select-sound-type" class="custom-select">
-            <option value="click">チクタク (時計音)</option>
-            <option value="beep">電子音 (ピッ)</option>
-            <option value="pop">ソフトポップ (ポッ)</option>
-            <option value="custom">カスタム音声ファイル...</option>
-          </select>
-        </div>
-
-        <div class="control-group" id="group-custom-sound" style="display:none;">
-          <label class="sub-label">音声ファイルを選択 (.mp3, .wav, .m4a)</label>
-          <label for="input-sound-file" class="btn-file-select">
-            <span>🎵 音声ファイルを選択</span>
-            <input type="file" id="input-sound-file" accept="audio/*" style="display:none">
-          </label>
-          <div id="txt-sound-filename" class="file-status-text">未選択</div>
-        </div>
-
         <div class="slider-row">
           <div class="slider-label-row">
             <span>全体音量</span>
             <span id="txt-volume-value" class="value-badge">70%</span>
           </div>
           <input type="range" id="rng-volume" min="0" max="100" step="5" value="70">
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- ① 秒の音 -->
+        <div class="sound-tier-card">
+          <div class="sound-tier-header">
+            <label class="sub-label">⏱️ 秒の音（毎秒）</label>
+            <button type="button" class="btn-play-sound" id="btn-preview-sec" title="秒音を試聴">▶ 試聴</button>
+          </div>
+          <div class="sound-select-row">
+            <select id="select-sound-sec" class="custom-select">
+              <option value="analog">アナログ秒針音 (コチッ)</option>
+              <option value="digital">デジタル秒針音 (ピッ)</option>
+              <option value="custom">カスタム音声ファイル...</option>
+              <option value="none">なし (消音)</option>
+            </select>
+          </div>
+          <div class="custom-sound-upload" id="upload-sec" style="display:none;">
+            <label for="input-sound-sec" class="btn-file-select btn-sm-file">
+              <span>🎵 秒の音声を選択</span>
+              <input type="file" id="input-sound-sec" accept="audio/*" style="display:none">
+            </label>
+            <span id="txt-sound-sec-name" class="file-status-text">未選択</span>
+          </div>
+        </div>
+
+        <!-- ② 分の音 -->
+        <div class="sound-tier-card">
+          <div class="sound-tier-header">
+            <label class="sub-label">🔔 分の音（毎分00秒）</label>
+            <button type="button" class="btn-play-sound" id="btn-preview-min" title="分音を試聴">▶ 試聴</button>
+          </div>
+          <div class="sound-select-row">
+            <select id="select-sound-min" class="custom-select">
+              <option value="analog">アナログ時計音 (カチャッ)</option>
+              <option value="digital">デジタル報時音 (ピピッ)</option>
+              <option value="custom">カスタム音声ファイル...</option>
+              <option value="none" selected>なし (秒音に従う)</option>
+            </select>
+          </div>
+          <div class="custom-sound-upload" id="upload-min" style="display:none;">
+            <label for="input-sound-min" class="btn-file-select btn-sm-file">
+              <span>🎵 分の音声を選択</span>
+              <input type="file" id="input-sound-min" accept="audio/*" style="display:none">
+            </label>
+            <span id="txt-sound-min-name" class="file-status-text">未選択</span>
+          </div>
+        </div>
+
+        <!-- ③ 時の音 -->
+        <div class="sound-tier-card">
+          <div class="sound-tier-header">
+            <label class="sub-label">🕰️ 時の音（毎時00分00秒）</label>
+            <button type="button" class="btn-play-sound" id="btn-preview-hour" title="時音を試聴">▶ 試聴</button>
+          </div>
+          <div class="sound-select-row">
+            <select id="select-sound-hour" class="custom-select">
+              <option value="bell">ごーんごーん (鐘の音)</option>
+              <option value="cuckoo">ぽっぽぽっぽ (鳩時計)</option>
+              <option value="custom">カスタム音声ファイル...</option>
+              <option value="none" selected>なし (秒・分音に従う)</option>
+            </select>
+          </div>
+          <div class="custom-sound-upload" id="upload-hour" style="display:none;">
+            <label for="input-sound-hour" class="btn-file-select btn-sm-file">
+              <span>🎵 時の音声を選択</span>
+              <input type="file" id="input-sound-hour" accept="audio/*" style="display:none">
+            </label>
+            <span id="txt-sound-hour-name" class="file-status-text">未選択</span>
+          </div>
         </div>
       </div>
 

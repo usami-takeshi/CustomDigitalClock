@@ -61,13 +61,18 @@ const ASSET_CONFIG = {
 
 /* ==========================================================================
    サウンド管理システム (Web Audio API & オーディオファイル)
+   秒（アナログ・デジタル・カスタム）
+   分（アナログ・デジタル・カスタム）
+   時（ごーんごーん・ぽっぽぽっぽ・カスタム）
    ========================================================================== */
 class SoundEngine {
   constructor() {
     this.audioCtx = null;
-    this.customAudioBuffer = null;
-    this.customAudioUrl = null;
-    this.isMuted = false;
+    this.customBuffers = {
+      sec: null,
+      min: null,
+      hour: null
+    };
     this.volume = 0.7; // 0.0 〜 1.0
   }
 
@@ -87,18 +92,13 @@ class SoundEngine {
     this.volume = Math.max(0, Math.min(1, vol));
   }
 
-  setCustomAudio(file) {
+  setCustomAudio(tier, file) {
     this.ensureContext();
-    if (this.customAudioUrl) {
-      URL.revokeObjectURL(this.customAudioUrl);
-    }
-    this.customAudioUrl = URL.createObjectURL(file);
-
     const reader = new FileReader();
     reader.onload = (e) => {
       if (this.audioCtx) {
         this.audioCtx.decodeAudioData(e.target.result, (buf) => {
-          this.customAudioBuffer = buf;
+          this.customBuffers[tier] = buf;
         });
       }
     };
@@ -106,65 +106,209 @@ class SoundEngine {
   }
 
   /**
-   * カウント音（効果音）を再生
+   * ① 秒の音（毎秒）
    */
-  playTick(type = 'click') {
+  playSecSound(type = 'analog') {
+    if (type === 'none' || this.volume <= 0) return;
     this.ensureContext();
-    if (!this.audioCtx || this.volume <= 0) return;
+    if (!this.audioCtx) return;
 
-    const ctx = this.audioCtx;
-    const now = ctx.currentTime;
-    const masterGain = ctx.createGain();
-    masterGain.gain.setValueAtTime(this.volume, now);
-    masterGain.connect(ctx.destination);
-
-    if (type === 'custom' && this.customAudioBuffer) {
-      const source = ctx.createBufferSource();
-      source.buffer = this.customAudioBuffer;
-      source.connect(masterGain);
-      source.start(now);
+    if (type === 'custom' && this.customBuffers.sec) {
+      this._playBuffer(this.customBuffers.sec);
       return;
     }
 
-    if (type === 'click') {
-      // チクタク（心地よい打撃音）
+    const ctx = this.audioCtx;
+    const now = ctx.currentTime;
+
+    if (type === 'analog') {
+      // アナログ秒針（カチッ・コチッ：短いアタック + バンドパス）
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1600, now);
+      osc.frequency.exponentialRampToValueAtTime(120, now + 0.025);
+
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(2200, now);
+
+      gain.gain.setValueAtTime(0.5 * this.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.035);
+    } else if (type === 'digital') {
+      // デジタル秒針音（ピッ：高域サイン波パルス）
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(1200, now);
-      osc.frequency.exponentialRampToValueAtTime(100, now + 0.04);
-      gain.gain.setValueAtTime(0.6 * this.volume, now);
+      osc.frequency.setValueAtTime(1400, now);
+      gain.gain.setValueAtTime(0.3 * this.volume, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.05);
-    } else if (type === 'beep') {
-      // 電子音（ピッ）
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(987.77, now); // B5音
-      gain.gain.setValueAtTime(0.2 * this.volume, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.07);
-    } else if (type === 'pop') {
-      // ソフトポップ（ポッ）
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(320, now);
-      osc.frequency.exponentialRampToValueAtTime(80, now + 0.08);
-      gain.gain.setValueAtTime(0.7 * this.volume, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.09);
+      osc.stop(now + 0.045);
     }
+  }
+
+  /**
+   * ② 分の音（毎分00秒）
+   */
+  playMinSound(type = 'digital') {
+    if (type === 'none' || this.volume <= 0) return;
+    this.ensureContext();
+    if (!this.audioCtx) return;
+
+    if (type === 'custom' && this.customBuffers.min) {
+      this._playBuffer(this.customBuffers.min);
+      return;
+    }
+
+    const ctx = this.audioCtx;
+    const now = ctx.currentTime;
+
+    if (type === 'analog') {
+      // アナログ時計の分送り音（少し重厚なカチャッ）
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc1.type = 'triangle';
+      osc1.frequency.setValueAtTime(800, now);
+      osc1.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(450, now + 0.01);
+      osc2.frequency.exponentialRampToValueAtTime(80, now + 0.06);
+
+      gain.gain.setValueAtTime(0.7 * this.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start(now);
+      osc2.start(now + 0.01);
+      osc1.stop(now + 0.08);
+      osc2.stop(now + 0.08);
+    } else if (type === 'digital') {
+      // デジタル報時音（ピピッ！2音連続）
+      this._playBeepTone(1318.5, now, 0.05);          // E6
+      this._playBeepTone(1567.98, now + 0.07, 0.07);  // G6
+    }
+  }
+
+  /**
+   * ③ 時の音（毎時00分00秒）
+   */
+  playHourSound(type = 'bell') {
+    if (type === 'none' || this.volume <= 0) return;
+    this.ensureContext();
+    if (!this.audioCtx) return;
+
+    if (type === 'custom' && this.customBuffers.hour) {
+      this._playBuffer(this.customBuffers.hour);
+      return;
+    }
+
+    const ctx = this.audioCtx;
+    const now = ctx.currentTime;
+
+    if (type === 'bell') {
+      // ごーんごーん（鐘の音：豊かな低周波倍音 + 長い余韻、2回打鐘）
+      this._strikeBell(now);
+      this._strikeBell(now + 1.4);
+    } else if (type === 'cuckoo') {
+      // ぽっぽぽっぽ（鳩時計：ポッ・ポーを2回繰り返し）
+      this._playCuckooPair(now);
+      this._playCuckooPair(now + 0.7);
+    }
+  }
+
+  _playBeepTone(freq, startTime, duration) {
+    const ctx = this.audioCtx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, startTime);
+    gain.gain.setValueAtTime(0.35 * this.volume, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.01);
+  }
+
+  _strikeBell(startTime) {
+    const ctx = this.audioCtx;
+    // 鐘の倍音構成 (非調和倍音)
+    const partials = [
+      { freq: 130.81, gain: 0.6, decay: 2.5 },  // C3基音
+      { freq: 261.63, gain: 0.4, decay: 2.0 },  // C4
+      { freq: 392.00, gain: 0.25, decay: 1.6 }, // G4
+      { freq: 523.25, gain: 0.15, decay: 1.2 }, // C5
+      { freq: 659.25, gain: 0.08, decay: 0.8 }  // E5
+    ];
+
+    partials.forEach(p => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(p.freq, startTime);
+      gain.gain.setValueAtTime(p.gain * this.volume, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + p.decay);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + p.decay + 0.05);
+    });
+  }
+
+  _playCuckooPair(startTime) {
+    const ctx = this.audioCtx;
+    // ポッ (高音: F#5 約 740Hz)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(740, startTime);
+    gain1.gain.setValueAtTime(0.55 * this.volume, startTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, startTime + 0.18);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(startTime);
+    osc1.stop(startTime + 0.2);
+
+    // ポー (低音: D5 約 587Hz)
+    const t2 = startTime + 0.22;
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(587, t2);
+    gain2.gain.setValueAtTime(0.5 * this.volume, t2);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t2 + 0.35);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(t2);
+    osc2.stop(t2 + 0.38);
+  }
+
+  _playBuffer(buffer) {
+    const ctx = this.audioCtx;
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(this.volume, ctx.currentTime);
+    source.buffer = buffer;
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start(ctx.currentTime);
   }
 }
 
@@ -671,15 +815,38 @@ class ClockApp {
     this.rngBgBlur = document.getElementById('rng-bg-blur');
     this.txtBgBlurValue = document.getElementById('txt-bg-blur-value');
 
-    // 音（サウンド）
+    // 音（サウンド）秒・分・時
     this.chkVideoSound = document.getElementById('chk-video-sound');
-    this.chkTickSound = document.getElementById('chk-tick-sound');
-    this.selectSoundType = document.getElementById('select-sound-type');
-    this.groupCustomSound = document.getElementById('group-custom-sound');
-    this.inputSoundFile = document.getElementById('input-sound-file');
-    this.txtSoundFilename = document.getElementById('txt-sound-filename');
     this.rngVolume = document.getElementById('rng-volume');
     this.txtVolumeValue = document.getElementById('txt-volume-value');
+
+    this.selectSoundSec = document.getElementById('select-sound-sec');
+    this.selectSoundMin = document.getElementById('select-sound-min');
+    this.selectSoundHour = document.getElementById('select-sound-hour');
+
+    this.btnPreviewSec = document.getElementById('btn-preview-sec');
+    this.btnPreviewMin = document.getElementById('btn-preview-min');
+    this.btnPreviewHour = document.getElementById('btn-preview-hour');
+
+    this.uploadSec = document.getElementById('upload-sec');
+    this.uploadMin = document.getElementById('upload-min');
+    this.uploadHour = document.getElementById('upload-hour');
+
+    this.inputSoundSec = document.getElementById('input-sound-sec');
+    this.inputSoundMin = document.getElementById('input-sound-min');
+    this.inputSoundHour = document.getElementById('input-sound-hour');
+
+    this.txtSoundSecName = document.getElementById('txt-sound-sec-name');
+    this.txtSoundMinName = document.getElementById('txt-sound-min-name');
+    this.txtSoundHourName = document.getElementById('txt-sound-hour-name');
+
+    // 12パターンテスト再生ボタン群
+    this.btnPatTests = document.querySelectorAll('.btn-pat-test');
+
+    // 音色状態の保持
+    this.soundSecType = 'analog';
+    this.soundMinType = 'none';
+    this.soundHourType = 'none';
 
     // 保存・読込・共有
     this.btnCopyShareUrl = document.getElementById('btn-copy-share-url');
@@ -919,6 +1086,17 @@ class ClockApp {
       document.documentElement.style.setProperty('--bg-blur', `${val}px`);
     });
 
+    // 12パターンテスト再生ボタン群のバインド
+    if (this.btnPatTests && this.btnPatTests.length > 0) {
+      this.btnPatTests.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const from = parseInt(btn.dataset.from, 10);
+          const to = parseInt(btn.dataset.to, 10);
+          this.playSinglePatternTest(from, to);
+        });
+      });
+    }
+
     // 音（サウンド）設定
     this.chkVideoSound.addEventListener('change', (e) => {
       const isPlay = e.target.checked;
@@ -926,30 +1104,77 @@ class ClockApp {
       this.showToast(`動画音声の再生を ${isPlay ? 'ON' : 'OFF'} にしました`);
     });
 
-    this.chkTickSound.addEventListener('change', (e) => {
-      this.enableTickSound = e.target.checked;
-      if (this.enableTickSound) {
-        this.soundEngine.playTick(this.soundType);
+    // 秒音選択
+    this.selectSoundSec.addEventListener('change', (e) => {
+      this.soundSecType = e.target.value;
+      this.uploadSec.style.display = this.soundSecType === 'custom' ? 'flex' : 'none';
+      if (this.soundSecType !== 'none') {
+        this.soundEngine.playSecSound(this.soundSecType);
       }
+      this.saveToStorage();
     });
 
-    this.selectSoundType.addEventListener('change', (e) => {
-      this.soundType = e.target.value;
-      this.groupCustomSound.style.display = this.soundType === 'custom' ? 'block' : 'none';
-      if (this.enableTickSound) {
-        this.soundEngine.playTick(this.soundType);
+    // 分音選択
+    this.selectSoundMin.addEventListener('change', (e) => {
+      this.soundMinType = e.target.value;
+      this.uploadMin.style.display = this.soundMinType === 'custom' ? 'flex' : 'none';
+      if (this.soundMinType !== 'none') {
+        this.soundEngine.playMinSound(this.soundMinType);
       }
+      this.saveToStorage();
     });
 
-    this.inputSoundFile.addEventListener('change', (e) => {
+    // 時音選択
+    this.selectSoundHour.addEventListener('change', (e) => {
+      this.soundHourType = e.target.value;
+      this.uploadHour.style.display = this.soundHourType === 'custom' ? 'flex' : 'none';
+      if (this.soundHourType !== 'none') {
+        this.soundEngine.playHourSound(this.soundHourType);
+      }
+      this.saveToStorage();
+    });
+
+    // 試聴ボタン
+    this.btnPreviewSec.addEventListener('click', () => {
+      this.soundEngine.playSecSound(this.soundSecType);
+    });
+
+    this.btnPreviewMin.addEventListener('click', () => {
+      this.soundEngine.playMinSound(this.soundMinType);
+    });
+
+    this.btnPreviewHour.addEventListener('click', () => {
+      this.soundEngine.playHourSound(this.soundHourType);
+    });
+
+    // 音声ファイルアップロード
+    this.inputSoundSec.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        this.soundEngine.setCustomAudio(file);
-        this.txtSoundFilename.textContent = file.name;
-        this.showToast(`音声ファイルを設定しました: ${file.name}`);
-        if (this.enableTickSound) {
-          setTimeout(() => this.soundEngine.playTick('custom'), 300);
-        }
+        this.soundEngine.setCustomAudio('sec', file);
+        this.txtSoundSecName.textContent = file.name;
+        this.showToast(`秒の音声を設定しました: ${file.name}`);
+        setTimeout(() => this.soundEngine.playSecSound('custom'), 200);
+      }
+    });
+
+    this.inputSoundMin.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        this.soundEngine.setCustomAudio('min', file);
+        this.txtSoundMinName.textContent = file.name;
+        this.showToast(`分の音声を設定しました: ${file.name}`);
+        setTimeout(() => this.soundEngine.playMinSound('custom'), 200);
+      }
+    });
+
+    this.inputSoundHour.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        this.soundEngine.setCustomAudio('hour', file);
+        this.txtSoundHourName.textContent = file.name;
+        this.showToast(`時の音声を設定しました: ${file.name}`);
+        setTimeout(() => this.soundEngine.playHourSound('custom'), 200);
       }
     });
 
@@ -966,10 +1191,10 @@ class ClockApp {
       this.chkBlinkColon, this.chkFallback, this.chkGuidelines,
       this.pickerBgColor, this.pickerColonColor,
       this.rngBgDim, this.rngBgBlur,
-      this.chkVideoSound, this.chkTickSound, this.selectSoundType
+      this.chkVideoSound, this.selectSoundSec, this.selectSoundMin, this.selectSoundHour
     ];
     autoSaveElements.forEach(el => {
-      el.addEventListener('change', () => this.saveToStorage());
+      if (el) el.addEventListener('change', () => this.saveToStorage());
     });
 
     // 共有リンクコピーボタン
@@ -1024,8 +1249,9 @@ class ClockApp {
       bgDim: parseInt(this.rngBgDim.value, 10),
       bgBlur: parseInt(this.rngBgBlur.value, 10),
       videoSound: this.chkVideoSound.checked,
-      tickSound: this.chkTickSound.checked,
-      soundType: this.selectSoundType.value,
+      soundSecType: this.soundSecType,
+      soundMinType: this.soundMinType,
+      soundHourType: this.soundHourType,
       volume: parseInt(this.rngVolume.value, 10),
       assetMode: this.assetManager.getMode()
     };
@@ -1087,14 +1313,20 @@ class ClockApp {
       this.chkVideoSound.checked = cfg.videoSound;
       this.digitRenderers.forEach(r => r.playVideoAudio = cfg.videoSound);
     }
-    if (cfg.tickSound !== undefined) {
-      this.chkTickSound.checked = cfg.tickSound;
-      this.enableTickSound = cfg.tickSound;
+    if (cfg.soundSecType) {
+      this.soundSecType = cfg.soundSecType;
+      this.selectSoundSec.value = cfg.soundSecType;
+      this.uploadSec.style.display = this.soundSecType === 'custom' ? 'flex' : 'none';
     }
-    if (cfg.soundType) {
-      this.selectSoundType.value = cfg.soundType;
-      this.soundType = cfg.soundType;
-      this.groupCustomSound.style.display = this.soundType === 'custom' ? 'block' : 'none';
+    if (cfg.soundMinType) {
+      this.soundMinType = cfg.soundMinType;
+      this.selectSoundMin.value = cfg.soundMinType;
+      this.uploadMin.style.display = this.soundMinType === 'custom' ? 'flex' : 'none';
+    }
+    if (cfg.soundHourType) {
+      this.soundHourType = cfg.soundHourType;
+      this.selectSoundHour.value = cfg.soundHourType;
+      this.uploadHour.style.display = this.soundHourType === 'custom' ? 'flex' : 'none';
     }
     if (cfg.volume !== undefined) {
       this.rngVolume.value = cfg.volume;
@@ -1220,8 +1452,9 @@ class ClockApp {
       bgDim: 30,
       bgBlur: 0,
       videoSound: false,
-      tickSound: false,
-      soundType: 'click',
+      soundSecType: 'analog',
+      soundMinType: 'none',
+      soundHourType: 'none',
       volume: 70,
       assetMode: 'webm'
     };
@@ -1333,7 +1566,13 @@ class ClockApp {
 
     if (mode === 'clock') {
       this.showToast('時計モード: 現在時刻に同期中');
-      this.lastDigits = [-1, -1, -1, -1, -1, -1];
+      const now = new Date();
+      const currentDigits = this.getDigitsFromDate(now);
+      this.digitRenderers.forEach((r, i) => {
+        r.drawStatic(currentDigits[i]);
+      });
+      this.lastDigits = [...currentDigits];
+      this.lastSec = now.getSeconds();
     } else if (mode === 'test-loop') {
       this.showToast('テスト再生: 0→9 ループ中');
       this.testValue = 0;
@@ -1347,12 +1586,40 @@ class ClockApp {
     }
   }
 
+  /**
+   * 12種類の個別パターンテスト再生（ボタンタップ時）
+   * @param {number} from 遷移元数字
+   * @param {number} to 遷移先数字
+   */
+  playSinglePatternTest(from, to) {
+    if (this.testInterval) {
+      clearInterval(this.testInterval);
+      this.testInterval = null;
+    }
+    // どの桁で再生するか判定:
+    // 2→0: 時の10の位 (桁0) または 1の位
+    // 5→0: 分/秒の10の位 (桁4)
+    // それ以外: 1の位 (桁5)
+    let targetIdx = 5;
+    if (from === 5 && to === 0) {
+      targetIdx = 4;
+    } else if (from === 2 && to === 0) {
+      targetIdx = 0;
+    }
+
+    // アニメーション再生
+    this.digitRenderers[targetIdx].startTransition(from, to);
+
+    // 音の再生（秒音）
+    this.soundEngine.playSecSound(this.soundSecType);
+
+    this.showToast(`パターン ${from}→${to} を再生しました`);
+  }
+
   tickTestLoop() {
     const nextVal = (this.testValue + 1) % 10;
     this.digitRenderers[5].startTransition(this.testValue, nextVal);
-    if (this.enableTickSound) {
-      this.soundEngine.playTick(this.soundType);
-    }
+    this.soundEngine.playSecSound(this.soundSecType);
     this.testValue = nextVal;
   }
 
@@ -1361,9 +1628,7 @@ class ClockApp {
     this.digitRenderers.forEach(r => {
       r.startTransition(this.testValue, nextVal);
     });
-    if (this.enableTickSound) {
-      this.soundEngine.playTick(this.soundType);
-    }
+    this.soundEngine.playSecSound(this.soundSecType);
     this.testValue = nextVal;
   }
 
@@ -1435,6 +1700,7 @@ class ClockApp {
 
         if (currentSec !== this.lastSec) {
           this.lastSec = currentSec;
+          const currentMin = now.getMinutes();
           const newDigits = this.getDigitsFromDate(now);
 
           if (this.lastDigits[0] !== -1) {
@@ -1445,8 +1711,16 @@ class ClockApp {
                 hasChanged = true;
               }
             }
-            if (hasChanged && this.enableTickSound) {
-              this.soundEngine.playTick(this.soundType);
+
+            if (hasChanged) {
+              // 音声再生（時・分・秒の優先制御）
+              if (currentMin === 0 && currentSec === 0 && this.soundHourType !== 'none') {
+                this.soundEngine.playHourSound(this.soundHourType);
+              } else if (currentSec === 0 && this.soundMinType !== 'none') {
+                this.soundEngine.playMinSound(this.soundMinType);
+              } else {
+                this.soundEngine.playSecSound(this.soundSecType);
+              }
             }
           } else {
             this.digitRenderers.forEach((r, i) => r.drawStatic(newDigits[i]));

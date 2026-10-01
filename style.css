@@ -835,3 +835,93 @@ input:checked + .slider::before {
   font-size: 10px;
   color: var(--panel-muted);
 }
+
+/* ==========================================================================
+   12パターン個別テスト再生グリッド
+   ========================================================================== */
+.pattern-test-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.btn-pat-test {
+  padding: 8px 4px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: monospace;
+}
+
+.btn-pat-test:hover {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: #60a5fa;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.btn-pat-test:active {
+  transform: translateY(1px);
+  background: var(--accent-color);
+  color: #fff;
+}
+
+/* ==========================================================================
+   サウンド階層化（秒・分・時）カード
+   ========================================================================== */
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--panel-border);
+  margin: 4px 0;
+}
+
+.sound-tier-card {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sound-tier-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-play-sound {
+  padding: 3px 8px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #93c5fd;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-play-sound:hover {
+  background: rgba(59, 130, 246, 0.3);
+  color: #fff;
+}
+
+.btn-sm-file {
+  padding: 5px 8px;
+  font-size: 10px;
+}
+
+.custom-sound-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
