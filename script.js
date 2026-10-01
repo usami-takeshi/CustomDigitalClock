@@ -420,10 +420,28 @@ class AssetManager {
     const total = patterns.length;
 
     const promises = patterns.map(pattern => {
-      return new Promise((resolve) => {
-        let url = `${this.config.webm.basePath}${pattern}${this.config.webm.fileExtension}`;
-        if (this.blobOverrides.webm[pattern]) {
-          url = this.blobOverrides.webm[pattern];
+      return new Promise(async (resolve) => {
+        const isOverride = Boolean(this.blobOverrides.webm[pattern]);
+        let url = isOverride 
+          ? this.blobOverrides.webm[pattern] 
+          : `${this.config.webm.basePath}${pattern}${this.config.webm.fileExtension}`;
+
+        // 静的パスの場合は事前にfetch (HEAD) で存在確認を行い、404エラーをブラウザコンソールに出さない
+        if (!isOverride) {
+          try {
+            const headResp = await fetch(url, { method: 'HEAD' });
+            if (!headResp.ok) {
+              this.status.webm[pattern] = 'missing';
+              completedCount++;
+              if (this.onProgressCallback) this.onProgressCallback(completedCount, total, pattern, false);
+              return resolve({ pattern, success: false });
+            }
+          } catch (_) {
+            this.status.webm[pattern] = 'missing';
+            completedCount++;
+            if (this.onProgressCallback) this.onProgressCallback(completedCount, total, pattern, false);
+            return resolve({ pattern, success: false });
+          }
         }
 
         const video = document.createElement('video');
@@ -485,20 +503,39 @@ class AssetManager {
 
     const patternPromises = patterns.map(pattern => {
       return new Promise(async (resolvePattern) => {
+        // フォルダ直読込のオーバーライドがあるか確認
+        const overrideList = this.blobOverrides.png[pattern];
+        const isOverride = Boolean(overrideList && overrideList.length > 0);
+
+        if (isOverride) {
+          overrideList.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+        } else {
+          // 静的パスの場合は最初のフレーム frame_00.png の存在をHEADで事前確認
+          const testUrl = `${this.config.png.basePath}${pattern}/${this.config.png.prefix}00${this.config.png.fileExtension}`;
+          try {
+            const headResp = await fetch(testUrl, { method: 'HEAD' });
+            if (!headResp.ok) {
+              this.status.png[pattern] = 'missing';
+              completedPatterns++;
+              if (this.onProgressCallback) this.onProgressCallback(completedPatterns, total, pattern, false);
+              return resolvePattern({ pattern, success: false });
+            }
+          } catch (_) {
+            this.status.png[pattern] = 'missing';
+            completedPatterns++;
+            if (this.onProgressCallback) this.onProgressCallback(completedPatterns, total, pattern, false);
+            return resolvePattern({ pattern, success: false });
+          }
+        }
+
         const frameImages = [];
         let loadedFrames = 0;
         let hasError = false;
-
-        // フォルダ直読込のオーバーライドがあるか確認
-        const overrideList = this.blobOverrides.png[pattern];
-        if (overrideList && overrideList.length > 0) {
-          overrideList.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-        }
-
         const framePromises = [];
+
         for (let i = 0; i < fps; i++) {
           let url = '';
-          if (overrideList && overrideList[i]) {
+          if (isOverride && overrideList[i]) {
             url = overrideList[i].blobUrl;
           } else {
             const frameIndex = this.config.png.startIndex + i;
