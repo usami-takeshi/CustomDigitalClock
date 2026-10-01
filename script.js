@@ -84,8 +84,22 @@ class SoundEngine {
       }
     }
     if (this.audioCtx && this.audioCtx.state === 'suspended') {
-      this.audioCtx.resume();
+      this.audioCtx.resume().catch(() => {});
     }
+  }
+
+  /**
+   * ユーザー操作（クリック、タップ、キー等）時に明示的にAudioContextをアンロック
+   */
+  unlock() {
+    this.ensureContext();
+    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+      this.audioCtx.resume().catch(() => {});
+    }
+  }
+
+  isReady() {
+    return this.audioCtx && this.audioCtx.state === 'running';
   }
 
   setVolume(vol) {
@@ -111,7 +125,7 @@ class SoundEngine {
   playSecSound(type = 'analog') {
     if (type === 'none' || this.volume <= 0) return;
     this.ensureContext();
-    if (!this.audioCtx) return;
+    if (!this.audioCtx || this.audioCtx.state !== 'running') return;
 
     if (type === 'custom' && this.customBuffers.sec) {
       this._playBuffer(this.customBuffers.sec);
@@ -164,7 +178,7 @@ class SoundEngine {
   playMinSound(type = 'digital') {
     if (type === 'none' || this.volume <= 0) return;
     this.ensureContext();
-    if (!this.audioCtx) return;
+    if (!this.audioCtx || this.audioCtx.state !== 'running') return;
 
     if (type === 'custom' && this.customBuffers.min) {
       this._playBuffer(this.customBuffers.min);
@@ -212,7 +226,7 @@ class SoundEngine {
   playHourSound(type = 'bell') {
     if (type === 'none' || this.volume <= 0) return;
     this.ensureContext();
-    if (!this.audioCtx) return;
+    if (!this.audioCtx || this.audioCtx.state !== 'running') return;
 
     if (type === 'custom' && this.customBuffers.hour) {
       this._playBuffer(this.customBuffers.hour);
@@ -871,14 +885,16 @@ class ClockApp {
   }
 
   bindEvents() {
-    // ユーザー操作時にAudioContextをアンロック
+    // ユーザー操作時にAudioContextをアンロック（Web Audio 自動再生ポリシー対応）
     const unlockAudio = () => {
-      this.soundEngine.ensureContext();
-      window.removeEventListener('click', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
+      this.soundEngine.unlock();
+      ['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach(evt => {
+        window.removeEventListener(evt, unlockAudio);
+      });
     };
-    window.addEventListener('click', unlockAudio);
-    window.addEventListener('keydown', unlockAudio);
+    ['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach(evt => {
+      window.addEventListener(evt, unlockAudio, { passive: true });
+    });
 
     // 設定パネル開閉
     this.btnToggleSettings.addEventListener('click', () => {
@@ -1106,6 +1122,7 @@ class ClockApp {
 
     // 秒音選択
     this.selectSoundSec.addEventListener('change', (e) => {
+      this.soundEngine.unlock();
       this.soundSecType = e.target.value;
       this.uploadSec.style.display = this.soundSecType === 'custom' ? 'flex' : 'none';
       if (this.soundSecType !== 'none') {
@@ -1116,6 +1133,7 @@ class ClockApp {
 
     // 分音選択
     this.selectSoundMin.addEventListener('change', (e) => {
+      this.soundEngine.unlock();
       this.soundMinType = e.target.value;
       this.uploadMin.style.display = this.soundMinType === 'custom' ? 'flex' : 'none';
       if (this.soundMinType !== 'none') {
@@ -1126,6 +1144,7 @@ class ClockApp {
 
     // 時音選択
     this.selectSoundHour.addEventListener('change', (e) => {
+      this.soundEngine.unlock();
       this.soundHourType = e.target.value;
       this.uploadHour.style.display = this.soundHourType === 'custom' ? 'flex' : 'none';
       if (this.soundHourType !== 'none') {
@@ -1136,14 +1155,17 @@ class ClockApp {
 
     // 試聴ボタン
     this.btnPreviewSec.addEventListener('click', () => {
+      this.soundEngine.unlock();
       this.soundEngine.playSecSound(this.soundSecType);
     });
 
     this.btnPreviewMin.addEventListener('click', () => {
+      this.soundEngine.unlock();
       this.soundEngine.playMinSound(this.soundMinType);
     });
 
     this.btnPreviewHour.addEventListener('click', () => {
+      this.soundEngine.unlock();
       this.soundEngine.playHourSound(this.soundHourType);
     });
 
@@ -1574,11 +1596,13 @@ class ClockApp {
       this.lastDigits = [...currentDigits];
       this.lastSec = now.getSeconds();
     } else if (mode === 'test-loop') {
+      this.soundEngine.unlock();
       this.showToast('テスト再生: 0→9 ループ中');
       this.testValue = 0;
       this.testInterval = setInterval(() => this.tickTestLoop(), 1000);
       this.tickTestLoop();
     } else if (mode === 'test-sync') {
+      this.soundEngine.unlock();
       this.showToast('全桁一斉テスト: 0→9 同時遷移');
       this.testValue = 0;
       this.testInterval = setInterval(() => this.tickTestSync(), 1000);
@@ -1611,6 +1635,7 @@ class ClockApp {
     this.digitRenderers[targetIdx].startTransition(from, to);
 
     // 音の再生（秒音）
+    this.soundEngine.unlock();
     this.soundEngine.playSecSound(this.soundSecType);
 
     this.showToast(`パターン ${from}→${to} を再生しました`);
