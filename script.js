@@ -621,6 +621,8 @@ class DigitRenderer {
           this.activeVideo = document.createElement('video');
           this.activeVideo.playsInline = true;
           this.activeVideo.setAttribute('playsinline', '');
+        } else {
+          this.activeVideo.pause();
         }
 
         this.activeVideo.muted = !this.playVideoAudio;
@@ -635,8 +637,16 @@ class DigitRenderer {
         this.activeVideo.play().catch(() => {});
         this.activeAssetPattern = assetData.pattern;
       } else {
-        this.activeVideo = null;
+        if (this.activeVideo) {
+          this.activeVideo.pause();
+          this.activeVideo = null;
+        }
         this.activeAssetPattern = null;
+      }
+    } else {
+      if (this.activeVideo) {
+        this.activeVideo.pause();
+        this.activeVideo = null;
       }
     }
   }
@@ -683,13 +693,20 @@ class DigitRenderer {
       this.isAnimating = false;
       if (this.activeVideo) {
         this.activeVideo.pause();
+        this.activeVideo.currentTime = 0;
       }
+      this.drawStatic(this.transitionTo);
     }
   }
 
   drawStatic(value) {
     this.currentValue = value;
     this.isAnimating = false;
+    if (this.activeVideo) {
+      this.activeVideo.pause();
+      this.activeVideo.currentTime = 0;
+      this.activeVideo = null;
+    }
     this.ctx.clearRect(0, 0, this.width, this.height);
 
     const mode = this.assetManager.getMode();
@@ -698,8 +715,8 @@ class DigitRenderer {
 
     if (assetData) {
       if (mode === 'webm') {
-        if (this.activeVideo && this.activeVideo.readyState >= 2) {
-          this.ctx.drawImage(this.activeVideo, 0, 0, this.width, this.height);
+        if (assetData.asset && assetData.asset.readyState >= 2) {
+          this.ctx.drawImage(assetData.asset, 0, 0, this.width, this.height);
           return;
         }
       } else {
@@ -721,33 +738,37 @@ class DigitRenderer {
     const ctx = this.ctx;
     const w = this.width;
     const h = this.height;
+    // 滑らかなイージング（easeInOutQuad）
     const ease = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
 
     ctx.save();
-    ctx.font = 'bold 320px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.font = 'bold 340px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    ctx.fillStyle = `rgba(240, 244, 248, ${Math.max(0, 1 - progress * 1.5)})`;
-    ctx.fillText(fromVal, w / 2, h / 2 - ease * 120);
+    // 遷移元数字のフェードアウト & 上部へスライド
+    if (progress < 1.0) {
+      ctx.fillStyle = `rgba(240, 244, 248, ${Math.max(0, 1 - progress * 1.3)})`;
+      ctx.fillText(String(fromVal), w / 2, h / 2 - ease * 80);
+    }
 
-    ctx.fillStyle = `rgba(240, 244, 248, ${Math.min(1, progress * 1.5)})`;
-    ctx.fillText(toVal, w / 2, h / 2 + (1 - ease) * 120);
+    // 遷移先数字のフェードイン & 下部からスライド
+    if (progress > 0) {
+      ctx.fillStyle = `rgba(240, 244, 248, ${Math.min(1, progress * 1.3)})`;
+      ctx.fillText(String(toVal), w / 2, h / 2 + (1 - ease) * 80);
+    }
 
-    ctx.font = '16px monospace';
-    ctx.fillStyle = 'rgba(251, 191, 36, 0.6)';
-    ctx.fillText(`[Mock: ${fromVal}→${toVal}]`, w / 2, h - 30);
     ctx.restore();
   }
 
   _drawFallbackStatic(value) {
     const ctx = this.ctx;
     ctx.save();
-    ctx.font = 'bold 320px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.font = 'bold 340px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(240, 244, 248, 0.9)';
-    ctx.fillText(value, this.width / 2, this.height / 2);
+    ctx.fillStyle = 'rgba(240, 244, 248, 0.95)';
+    ctx.fillText(String(value), this.width / 2, this.height / 2);
     ctx.restore();
   }
 }
@@ -801,8 +822,6 @@ class ClockApp {
 
     // 動作モード
     this.btnModeClock = document.getElementById('btn-mode-clock');
-    this.btnModeTest = document.getElementById('btn-mode-test');
-    this.btnModeSync = document.getElementById('btn-mode-sync');
 
     // 表示オプション・間隔スライダー
     this.rngScale = document.getElementById('rng-scale');
@@ -996,10 +1015,10 @@ class ClockApp {
       this.startPreload();
     });
 
-    // 動作モード切り替え
-    this.btnModeClock.addEventListener('click', () => this.setOpMode('clock'));
-    this.btnModeTest.addEventListener('click', () => this.setOpMode('test-loop'));
-    this.btnModeSync.addEventListener('click', () => this.setOpMode('test-sync'));
+    // 動作モード切り替え（現在時刻に同期）
+    if (this.btnModeClock) {
+      this.btnModeClock.addEventListener('click', () => this.setOpMode('clock'));
+    }
 
     // スケール調整
     this.rngScale.addEventListener('input', (e) => {
@@ -1577,9 +1596,9 @@ class ClockApp {
 
   setOpMode(mode) {
     this.opMode = mode;
-    this.btnModeClock.classList.toggle('active', mode === 'clock');
-    this.btnModeTest.classList.toggle('active', mode === 'test-loop');
-    this.btnModeSync.classList.toggle('active', mode === 'test-sync');
+    if (this.btnModeClock) {
+      this.btnModeClock.classList.toggle('active', mode === 'clock');
+    }
 
     if (this.testInterval) {
       clearInterval(this.testInterval);
@@ -1587,7 +1606,7 @@ class ClockApp {
     }
 
     if (mode === 'clock') {
-      this.showToast('時計モード: 現在時刻に同期中');
+      this.showToast('時計モード: 現在時刻に同期しました');
       const now = new Date();
       const currentDigits = this.getDigitsFromDate(now);
       this.digitRenderers.forEach((r, i) => {
@@ -1595,18 +1614,6 @@ class ClockApp {
       });
       this.lastDigits = [...currentDigits];
       this.lastSec = now.getSeconds();
-    } else if (mode === 'test-loop') {
-      this.soundEngine.unlock();
-      this.showToast('テスト再生: 0→9 ループ中');
-      this.testValue = 0;
-      this.testInterval = setInterval(() => this.tickTestLoop(), 1000);
-      this.tickTestLoop();
-    } else if (mode === 'test-sync') {
-      this.soundEngine.unlock();
-      this.showToast('全桁一斉テスト: 0→9 同時遷移');
-      this.testValue = 0;
-      this.testInterval = setInterval(() => this.tickTestSync(), 1000);
-      this.tickTestSync();
     }
   }
 
@@ -1639,22 +1646,6 @@ class ClockApp {
     this.soundEngine.playSecSound(this.soundSecType);
 
     this.showToast(`パターン ${from}→${to} を再生しました`);
-  }
-
-  tickTestLoop() {
-    const nextVal = (this.testValue + 1) % 10;
-    this.digitRenderers[5].startTransition(this.testValue, nextVal);
-    this.soundEngine.playSecSound(this.soundSecType);
-    this.testValue = nextVal;
-  }
-
-  tickTestSync() {
-    const nextVal = (this.testValue + 1) % 10;
-    this.digitRenderers.forEach(r => {
-      r.startTransition(this.testValue, nextVal);
-    });
-    this.soundEngine.playSecSound(this.soundSecType);
-    this.testValue = nextVal;
   }
 
   async startPreload() {
