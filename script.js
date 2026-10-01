@@ -205,6 +205,7 @@ class AssetManager {
 
   /**
    * フォルダ選択ダイアログから受け取ったFileListをメモリ内アセットとして登録
+   */
   loadFromFolderFiles(fileList) {
     let webmCount = 0;
     let pngCount = 0;
