@@ -201,22 +201,22 @@
            タブ②: 表示・文字間隔オプション
            ============================================================== -->
       <div class="tab-pane" id="tab-display">
-        <!-- 時計サイズ -->
+        <!-- 時計サイズ（最大200%まで調整可） -->
         <div class="slider-row">
           <div class="slider-label-row">
             <span>時計全体サイズ</span>
-            <span id="txt-scale-value" class="value-badge">100%</span>
+            <span id="txt-scale-value" class="value-badge">160%</span>
           </div>
-          <input type="range" id="rng-scale" min="0.5" max="1.6" step="0.05" value="1.0">
+          <input type="range" id="rng-scale" min="0.5" max="2.0" step="0.05" value="1.6">
         </div>
 
         <!-- 数字同士の間隔（前後: -100px 〜 100px） -->
         <div class="slider-row">
           <div class="slider-label-row">
             <span>数字前後の間隔（文字間）</span>
-            <span id="txt-digit-gap-value" class="value-badge">0px</span>
+            <span id="txt-digit-gap-value" class="value-badge">-100px</span>
           </div>
-          <input type="range" id="rng-digit-gap" min="-100" max="100" step="2" value="0">
+          <input type="range" id="rng-digit-gap" min="-100" max="100" step="2" value="-100">
           <span class="slider-hint">各数字（桁）同士の左右の空き（-100pxまで重ねられます）</span>
         </div>
 
@@ -224,9 +224,9 @@
         <div class="slider-row">
           <div class="slider-label-row">
             <span>コロン前後の間隔</span>
-            <span id="txt-colon-margin-value" class="value-badge">0px</span>
+            <span id="txt-colon-margin-value" class="value-badge">-2px</span>
           </div>
-          <input type="range" id="rng-colon-margin" min="-100" max="100" step="2" value="0">
+          <input type="range" id="rng-colon-margin" min="-100" max="100" step="2" value="-2">
           <span class="slider-hint">コロン（:）と数字の間の左右余白を調整します</span>
         </div>
 

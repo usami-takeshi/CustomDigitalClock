@@ -1461,6 +1461,30 @@ class ClockApp {
   }
 
   /**
+   * システム標準の初期設定オブジェクト
+   */
+  getDefaultConfig() {
+    return {
+      scale: 1.6,
+      digitGap: -100,
+      colonMargin: -2,
+      blinkColon: true,
+      fallback: true,
+      guidelines: false,
+      bgColor: '#0d0f12',
+      colonColor: '#4a5568',
+      bgDim: 30,
+      bgBlur: 0,
+      videoSound: false,
+      soundSecType: 'analog',
+      soundMinType: 'none',
+      soundHourType: 'none',
+      volume: 70,
+      assetMode: 'webm'
+    };
+  }
+
+  /**
    * 起動時の設定読み込み（URLハッシュ優先、次いでlocalStorage）
    */
   loadSavedConfig() {
@@ -1481,15 +1505,18 @@ class ClockApp {
       console.warn('URL config parse error:', e);
     }
 
-    // 2. localStorage からの復元
+    // 2. localStorage からの復元（未保存時はデフォルト値を適用）
     try {
       const saved = localStorage.getItem('digiclock_settings');
       if (saved) {
         const parsed = JSON.parse(saved);
         this.applyConfig(parsed, false);
+      } else {
+        this.applyConfig(this.getDefaultConfig(), false);
       }
     } catch (e) {
       console.warn('LocalStorage config parse error:', e);
+      this.applyConfig(this.getDefaultConfig(), false);
     }
   }
 
@@ -1546,24 +1573,7 @@ class ClockApp {
       }
     } catch (_) {}
 
-    const defaultConfig = {
-      scale: 1.0,
-      digitGap: 0,
-      colonMargin: 0,
-      blinkColon: true,
-      fallback: true,
-      guidelines: false,
-      bgColor: '#0d0f12',
-      colonColor: '#4a5568',
-      bgDim: 30,
-      bgBlur: 0,
-      videoSound: false,
-      soundSecType: 'analog',
-      soundMinType: 'none',
-      soundHourType: 'none',
-      volume: 70,
-      assetMode: 'webm'
-    };
+    const defaultConfig = this.getDefaultConfig();
     this.applyConfig(defaultConfig, true);
     this.startPreload();
     this.showToast('設定を初期状態にリセットしました');

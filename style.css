@@ -17,11 +17,11 @@
   /* 時計のベースサイズ（各桁のアスペクト比は 1:1, 500x500px） */
   --digit-size: min(13vw, 150px);
   --colon-width: calc(var(--digit-size) * 0.25);
-  --clock-scale: 1.0;
+  --clock-scale: 1.6;
 
   /* 文字・コロン間隔の個別調整 */
-  --digit-gap: 0px;             /* 数字同士（前後）の追加マージン */
-  --colon-margin: 0px;          /* コロン（:）前後の追加マージン */
+  --digit-gap: -100px;            /* 数字同士（前後）の追加マージン */
+  --colon-margin: -2px;           /* コロン（:）前後の追加マージン */
 
   /* 背景映像・画像エフェクト */
   --bg-dim: 0.3;                /* 背景暗さ (0.0〜0.95) */
