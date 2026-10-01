@@ -404,9 +404,30 @@ class AssetManager {
     return { webmCount, pngCount, total: webmCount + pngCount, detectedMode: this.currentMode };
   }
 
+  /**
+   * ユーザから提供されたアセット（フォルダ選択やドロップ）が存在するか
+   */
+  hasCustomAssets() {
+    return Object.keys(this.blobOverrides.webm).length > 0 || Object.keys(this.blobOverrides.png).length > 0;
+  }
+
   async preloadAll(onProgress) {
     this.onProgressCallback = onProgress;
     const mode = this.currentMode;
+
+    // ユーザがまだ素材を読み込んでおらず、かつサーバー上に静的素材がない初期状態では
+    // 存在しないURLへのHTTPリクエスト（404エラー）を一切発生させず、直ちに全パターンを未配置（ダミー描画）として完了する
+    if (!this.hasCustomAssets()) {
+      const patterns = mode === 'webm' ? this.config.webm.patterns : this.config.png.patterns;
+      patterns.forEach(p => {
+        this.status[mode][p] = 'missing';
+      });
+      if (this.onProgressCallback) {
+        this.onProgressCallback(patterns.length, patterns.length, patterns[patterns.length - 1], false);
+      }
+      return this.status[mode];
+    }
+
     if (mode === 'webm') {
       return await this._preloadWebM();
     } else {
