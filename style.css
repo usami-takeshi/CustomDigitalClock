@@ -1,0 +1,871 @@
+/* ==========================================================================
+   CSSカスタムプロパティ（デザイン管理用変数）
+   ユーザや用途に合わせて色やフォント、サイズを簡単に変更できます
+   ========================================================================== */
+:root {
+  --bg-color: #0d0f12;          /* 時計の背景色 */
+  --text-color: #f0f4f8;        /* 基本文字色 */
+  --colon-color: #4a5568;       /* コロン（:）の色 */
+  --colon-glow: rgba(74, 85, 104, 0.4);
+  --accent-color: #3b82f6;      /* 設定UIのアクセント色（ブルー） */
+  --accent-hover: #2563eb;
+  --panel-bg: rgba(22, 27, 34, 0.96); /* 設定パネル背景色 */
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --panel-text: #e6edf3;
+  --panel-muted: #8b949e;
+  
+  /* 時計のベースサイズ（各桁のアスペクト比は 1:1, 500x500px） */
+  --digit-size: min(13vw, 150px);
+  --colon-width: calc(var(--digit-size) * 0.25);
+  --clock-scale: 1.0;
+
+  /* 文字・コロン間隔の個別調整 */
+  --digit-gap: 0px;             /* 数字同士（前後）の追加マージン */
+  --colon-margin: 0px;          /* コロン（:）前後の追加マージン */
+
+  /* 背景映像・画像エフェクト */
+  --bg-dim: 0.3;                /* 背景暗さ (0.0〜0.95) */
+  --bg-blur: 0px;               /* 背景ぼかし (0px〜25px) */
+  
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --transition-speed: 0.25s;
+}
+
+/* リセット & 基本設定 */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: var(--font-family);
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background-color var(--transition-speed) ease;
+}
+
+/* ==========================================================================
+   ドラッグ＆ドロップ受け入れオーバーレイ
+   ========================================================================== */
+.drag-drop-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 15, 18, 0.88);
+  backdrop-filter: blur(12px);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.drag-drop-overlay.drag-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drag-drop-card {
+  border: 2px dashed rgba(59, 130, 246, 0.6);
+  border-radius: 16px;
+  padding: 40px 50px;
+  text-align: center;
+  background: rgba(30, 41, 59, 0.5);
+  transform: scale(0.95);
+  transition: transform 0.25s ease;
+}
+
+.drag-drop-overlay.drag-active .drag-drop-card {
+  transform: scale(1);
+}
+
+.drag-drop-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.drag-drop-card h3 {
+  font-size: 18px;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.drag-drop-card p {
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+/* ==========================================================================
+   背景メディアレイヤー（映像 / 画像）
+   ========================================================================== */
+.bg-media-container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bg-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  filter: blur(var(--bg-blur));
+  transform: scale(1.05); /* ぼかしによるフチの白抜けを防止 */
+  transition: opacity 0.5s ease, filter 0.2s ease;
+}
+
+.bg-media.active {
+  opacity: 1;
+}
+
+.bg-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, var(--bg-dim));
+  transition: background-color 0.2s ease;
+}
+
+/* ==========================================================================
+   メイン表示ステージ（時計の中央配置）
+   ========================================================================== */
+.clock-stage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 10;
+}
+
+.clock-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scale(var(--clock-scale));
+  transform-origin: center center;
+  transition: transform 0.15s ease-out;
+  padding: 20px;
+}
+
+/* ペア（時、分、秒の2桁グループ） */
+.digit-pair {
+  display: flex;
+  align-items: center;
+}
+
+/* 各桁のラッパー */
+.digit-wrapper {
+  width: var(--digit-size);
+  height: var(--digit-size);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 基本マージン ＋ 数字間隔（--digit-gap）の個別調整 */
+  margin: 0 calc(var(--digit-size) * 0.02 + (var(--digit-gap) / 2));
+  transition: margin 0.15s ease-out;
+}
+
+/* 枠線ガイド（デバッグ・レイアウト確認用） */
+.clock-container.show-guidelines .digit-wrapper {
+  outline: 1px dashed rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.clock-container.show-guidelines .separator-colon {
+  outline: 1px dashed rgba(59, 130, 246, 0.3);
+}
+
+/* 描画用キャンバス（内部解像度500x500をレスポンシブに縮小表示） */
+.digit-canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* ==========================================================================
+   コロン区切り（:）
+   ========================================================================== */
+.separator-colon {
+  width: var(--colon-width);
+  height: var(--digit-size);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--digit-size) * 0.28);
+  /* 基本マージン ＋ コロン間隔（--colon-margin）の個別調整 */
+  margin: 0 calc(var(--digit-size) * 0.04 + var(--colon-margin));
+  transition: margin 0.15s ease-out;
+}
+
+.colon-dot {
+  width: calc(var(--digit-size) * 0.09);
+  height: calc(var(--digit-size) * 0.09);
+  background-color: var(--colon-color);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--colon-glow);
+  transition: opacity 0.2s ease, background-color var(--transition-speed) ease;
+}
+
+/* コロン点滅クラス */
+.separator-colon.blinking .colon-dot {
+  animation: colonBlink 1s infinite steps(1, start);
+}
+
+@keyframes colonBlink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+/* ==========================================================================
+   トースト通知
+   ========================================================================== */
+.status-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: rgba(30, 41, 59, 0.95);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  z-index: 300;
+  backdrop-filter: blur(8px);
+  max-width: 85vw;
+  text-align: center;
+}
+
+.status-toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* ==========================================================================
+   設定トグルボタン
+   ========================================================================== */
+.btn-toggle-settings {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background-color: rgba(30, 41, 59, 0.75);
+  color: #f1f5f9;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
+}
+
+.btn-toggle-settings:hover {
+  background-color: rgba(51, 65, 85, 0.95);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   設定パネル（スライドインドロワー）
+   ========================================================================== */
+.settings-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 380px;
+  max-width: 92vw;
+  height: 100%;
+  background: var(--panel-bg);
+  border-left: 1px solid var(--panel-border);
+  box-shadow: -10px 0 35px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--panel-text);
+}
+
+.settings-panel.open {
+  transform: translateX(0);
+}
+
+.settings-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.settings-header h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  color: var(--panel-muted);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.btn-close:hover {
+  color: #fff;
+}
+
+.settings-body {
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 動作モードカード（常に最上部に表示） */
+.settings-card {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--panel-muted);
+}
+
+.sub-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--panel-text);
+}
+
+.section-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ==========================================================================
+   アコーディオン（折りたたみバーUI）
+   不要な欄を小さなバーに格納できる
+   ========================================================================== */
+.accordion-bar {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.accordion-bar[open] {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* 折りたたみバーのヘッダー */
+.accordion-header {
+  padding: 11px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.03);
+  transition: background 0.15s ease;
+  user-select: none;
+}
+
+.accordion-header::-webkit-details-marker {
+  display: none;
+}
+
+.accordion-header:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.accordion-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.accordion-icon {
+  font-size: 14px;
+}
+
+.accordion-arrow {
+  font-size: 10px;
+  color: var(--panel-muted);
+  transition: transform 0.25s ease;
+}
+
+.accordion-bar[open] .accordion-arrow {
+  transform: rotate(0deg);
+}
+
+.accordion-bar:not([open]) .accordion-arrow {
+  transform: rotate(-90deg);
+}
+
+/* アコーディオンの中身 */
+.accordion-content {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ==========================================================================
+   ボタン・フォーム要素
+   ========================================================================== */
+.button-group {
+  display: flex;
+  gap: 6px;
+}
+
+.btn {
+  flex: 1;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--panel-border);
+  color: var(--panel-text);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.btn.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--accent-color);
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.btn-sm {
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--panel-border);
+  color: var(--panel-text);
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.btn-sm:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.35);
+}
+
+/* アクションボタン行（フォルダを開く等） */
+.action-buttons-row {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-action {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btn-action:hover {
+  background: rgba(59, 130, 246, 0.22);
+  border-color: #60a5fa;
+  color: #fff;
+}
+
+.btn-folder-pick {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--panel-border);
+  color: var(--panel-text);
+}
+
+.btn-folder-pick:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* セグメント切り替え（WebM / PNG） */
+.segmented-control {
+  display: flex;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 8px;
+  padding: 3px;
+  border: 1px solid var(--panel-border);
+}
+
+.segmented-control input[type="radio"] {
+  display: none;
+}
+
+.segmented-control label {
+  flex: 1;
+  text-align: center;
+  padding: 7px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--panel-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.segmented-control input[type="radio"]:checked + label {
+  background: var(--accent-color);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.35);
+}
+
+.section-help {
+  font-size: 11px;
+  color: var(--panel-muted);
+  line-height: 1.4;
+}
+
+.section-help code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #93c5fd;
+}
+
+/* スライダー行 */
+.slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.slider-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--panel-text);
+}
+
+.value-badge {
+  font-size: 11px;
+  font-family: monospace;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #93c5fd;
+}
+
+.slider-hint {
+  font-size: 10px;
+  color: var(--panel-muted);
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent-color);
+  cursor: pointer;
+}
+
+/* スイッチ設定行 */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.setting-subtext {
+  font-size: 10px;
+  color: var(--panel-muted);
+  margin-top: 2px;
+}
+
+/* スイッチUI */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.2);
+  transition: 0.3s;
+  border-radius: 20px;
+}
+
+.slider::before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--accent-color);
+}
+
+input:checked + .slider::before {
+  transform: translateX(18px);
+}
+
+/* カラーピッカー行 */
+.color-picker-row {
+  display: flex;
+  gap: 16px;
+}
+
+.color-picker-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.color-picker-row input[type="color"] {
+  border: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* ファイルアップロードUI */
+.file-upload-box {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-file-select {
+  flex: 1;
+  display: block;
+  text-align: center;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  color: #93c5fd;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-file-select:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #60a5fa;
+  color: #fff;
+}
+
+.file-status-text {
+  font-size: 11px;
+  color: var(--panel-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* カスタムセレクトボックス */
+.custom-select {
+  width: 100%;
+  padding: 7px 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--panel-text);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.custom-select option {
+  background: #1e293b;
+  color: #fff;
+}
+
+/* プログレスバー */
+.progress-bar-container {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #10b981);
+  transition: width 0.3s ease;
+}
+
+.status-indicator {
+  font-size: 11px;
+  color: var(--panel-muted);
+}
+
+/* アセット詳細アコーディオン */
+.asset-list-details {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 11px;
+}
+
+.asset-list-details summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--panel-text);
+  outline: none;
+}
+
+.asset-pattern-list {
+  list-style: none;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 140px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.asset-pattern-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 3px;
+}
+
+.asset-pattern-list li.loaded {
+  color: #34d399;
+}
+
+.asset-pattern-list li.missing {
+  color: #f87171;
+}
+
+/* ガイドボックス */
+.guide-box {
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.guide-box h3 {
+  font-size: 12px;
+  color: #93c5fd;
+  margin-bottom: 5px;
+}
+
+.guide-box p {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--panel-text);
+}
+
+.guide-box .guide-note {
+  margin-top: 5px;
+  font-size: 10px;
+  color: var(--panel-muted);
+}

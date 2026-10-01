@@ -1,0 +1,16 @@
+{
+  "name": "DigiClock - モーフィングデジタルクロック",
+  "short_name": "DigiClock",
+  "description": "モーフィングアニメーション対応デジタル時計",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0d0f12",
+  "theme_color": "#0d0f12",
+  "icons": [
+    {
+      "src": "assets/png/0_to_1/frame_00.png",
+      "sizes": "500x500",
+      "type": "image/png"
+    }
+  ]
+}
