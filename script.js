@@ -713,7 +713,7 @@ class DigitRenderer {
     if (!this.isAnimating) return;
 
     const elapsed = nowTime - this.animStartTime;
-    const progress = Math.min(1.0, elapsed / this.animDuration);
+    const progress = Math.min(1.0, Math.max(0, elapsed / this.animDuration));
 
     const patternName = `${this.transitionFrom}_to_${this.transitionTo}`;
     const mode = this.assetManager.getMode();
@@ -721,12 +721,12 @@ class DigitRenderer {
 
     this.ctx.clearRect(0, 0, this.width, this.height);
 
+    let hasDrawn = false;
     if (assetData) {
       if (mode === 'webm') {
         if (this.activeVideo && this.activeVideo.readyState >= 2) {
           this.ctx.drawImage(this.activeVideo, 0, 0, this.width, this.height);
-        } else {
-          this._drawFallbackMorph(this.transitionFrom, this.transitionTo, progress);
+          hasDrawn = true;
         }
       } else {
         const frames = assetData.asset;
@@ -736,14 +736,17 @@ class DigitRenderer {
           const img = frames[frameIndex];
           if (img && img.complete && img.naturalWidth > 0) {
             this.ctx.drawImage(img, 0, 0, this.width, this.height);
-          } else {
-            this._drawFallbackMorph(this.transitionFrom, this.transitionTo, progress);
+            hasDrawn = true;
           }
         }
       }
-    } else {
+    }
+
+    if (!hasDrawn) {
       if (this.enableFallbackDummy) {
         this._drawFallbackMorph(this.transitionFrom, this.transitionTo, progress);
+      } else {
+        this._drawFallbackStatic(this.transitionTo);
       }
     }
 
@@ -751,18 +754,22 @@ class DigitRenderer {
       this.isAnimating = false;
       if (this.activeVideo) {
         this.activeVideo.pause();
-        this.activeVideo.currentTime = 0;
       }
-      this.drawStatic(this.transitionTo);
+      this.drawStatic(this.transitionTo, true);
     }
   }
 
-  drawStatic(value) {
+  drawStatic(value, keepCurrentCanvas = false) {
     this.currentValue = value;
     this.isAnimating = false;
+
+    // アニメーション完了直後で、既にキャンバスに最終フレームが描画されている場合は再クリアしない
+    if (keepCurrentCanvas) {
+      return;
+    }
+
     if (this.activeVideo) {
       this.activeVideo.pause();
-      this.activeVideo.currentTime = 0;
       this.activeVideo = null;
     }
     this.ctx.clearRect(0, 0, this.width, this.height);
@@ -772,12 +779,7 @@ class DigitRenderer {
     const assetData = this.assetManager.getAsset(prevPattern);
 
     if (assetData) {
-      if (mode === 'webm') {
-        if (assetData.asset && assetData.asset.readyState >= 2) {
-          this.ctx.drawImage(assetData.asset, 0, 0, this.width, this.height);
-          return;
-        }
-      } else {
+      if (mode === 'png') {
         const frames = assetData.asset;
         if (frames && frames.length > 0) {
           const lastFrame = frames[frames.length - 1];
@@ -789,6 +791,7 @@ class DigitRenderer {
       }
     }
 
+    // WebMまたは静的素材未配置時は確実にテキスト数字を描画し、決して空白にしない
     this._drawFallbackStatic(value);
   }
 
@@ -796,24 +799,28 @@ class DigitRenderer {
     const ctx = this.ctx;
     const w = this.width;
     const h = this.height;
+    const p = Math.max(0, Math.min(1.0, progress));
     // 滑らかなイージング（easeInOutQuad）
-    const ease = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
+    const ease = p < 0.5 ? 2 * p * p : -1 + (4 - 2 * p) * p;
 
     ctx.save();
     ctx.font = 'bold 340px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
+    const fromOpacity = Math.max(0, 1 - ease);
+    const toOpacity = Math.min(1, ease);
+
     // 遷移元数字のフェードアウト & 上部へスライド
-    if (progress < 1.0) {
-      ctx.fillStyle = `rgba(240, 244, 248, ${Math.max(0, 1 - progress * 1.3)})`;
-      ctx.fillText(String(fromVal), w / 2, h / 2 - ease * 80);
+    if (fromOpacity > 0.02) {
+      ctx.fillStyle = `rgba(240, 244, 248, ${fromOpacity * 0.95})`;
+      ctx.fillText(String(fromVal), w / 2, h / 2 - ease * 60);
     }
 
     // 遷移先数字のフェードイン & 下部からスライド
-    if (progress > 0) {
-      ctx.fillStyle = `rgba(240, 244, 248, ${Math.min(1, progress * 1.3)})`;
-      ctx.fillText(String(toVal), w / 2, h / 2 + (1 - ease) * 80);
+    if (toOpacity > 0.02) {
+      ctx.fillStyle = `rgba(240, 244, 248, ${toOpacity * 0.95})`;
+      ctx.fillText(String(toVal), w / 2, h / 2 + (1 - ease) * 60);
     }
 
     ctx.restore();
@@ -1698,12 +1705,13 @@ class ClockApp {
 
     // アニメーション再生
     this.digitRenderers[targetIdx].startTransition(from, to);
+    this.lastDigits[targetIdx] = to;
 
     // 音の再生（秒音）
     this.soundEngine.unlock();
     this.soundEngine.playSecSound(this.soundSecType);
 
-    this.showToast(`パターン ${from}→${to} を再生しました`);
+    this.showToast(`パターン ${from}→${to} をテスト再生しました`);
   }
 
   async startPreload() {
