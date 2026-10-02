@@ -1391,33 +1391,39 @@ class ClockApp {
       });
     }
 
-    // 共有リンクコピーボタン
-    this.btnCopyShareUrl.addEventListener('click', async () => {
-      const shareUrl = this.getShareUrl();
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(shareUrl);
-          this.showToast('設計パラメータの共有リンクを複製しました！');
-        } else {
+    // 共有リンクコピーボタン (オプショナル)
+    if (this.btnCopyShareUrl) {
+      this.btnCopyShareUrl.addEventListener('click', async () => {
+        const shareUrl = this.getShareUrl();
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(shareUrl);
+            this.showToast('設計パラメータの共有リンクを複製しました！');
+          } else {
+            prompt('以下のURLをコピーして共有してください:', shareUrl);
+          }
+        } catch (_) {
           prompt('以下のURLをコピーして共有してください:', shareUrl);
         }
-      } catch (_) {
-        prompt('以下のURLをコピーして共有してください:', shareUrl);
-      }
-    });
+      });
+    }
 
-    // 設定ファイル保存 (JSONエクスポート)
-    this.btnExportConfig.addEventListener('click', () => {
-      this.exportConfig();
-    });
+    // 設定ファイル保存 (JSONエクスポート - オプショナル)
+    if (this.btnExportConfig) {
+      this.btnExportConfig.addEventListener('click', () => {
+        this.exportConfig();
+      });
+    }
 
-    // 設定ファイル読込 (JSONインポート)
-    this.inputImportConfig.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        this.importConfig(file);
-      }
-    });
+    // 設定ファイル読込 (JSONインポート - オプショナル)
+    if (this.inputImportConfig) {
+      this.inputImportConfig.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          this.importConfig(file);
+        }
+      });
+    }
 
     // 設定リセット
     this.btnResetConfig.addEventListener('click', () => {
