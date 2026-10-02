@@ -1022,13 +1022,35 @@ class ClockApp {
       window.addEventListener(evt, unlockAudio, { passive: true });
     });
 
-    // 設定パネル開閉
+    // 時計開発室パネル開閉
     this.btnToggleSettings.addEventListener('click', () => {
-      this.settingsPanel.classList.toggle('open');
+      const isOpen = this.settingsPanel.classList.toggle('open');
+      document.body.classList.toggle('settings-open', isOpen);
     });
     this.btnCloseSettings.addEventListener('click', () => {
       this.settingsPanel.classList.remove('open');
+      document.body.classList.remove('settings-open');
     });
+
+    // 画面下部ドロップ案内ピル & 開発室内ドロップゾーンクリックで製品読込ダイアログ
+    const dropPill = document.getElementById('drop-hint-pill');
+    if (dropPill) {
+      dropPill.addEventListener('click', () => {
+        if (this.inputImportPackage) this.inputImportPackage.click();
+      });
+    }
+    const labDropAssets = document.getElementById('lab-dropzone-assets');
+    if (labDropAssets) {
+      labDropAssets.addEventListener('click', () => {
+        if (this.inputImportPackage) this.inputImportPackage.click();
+      });
+    }
+    const labDropShare = document.getElementById('lab-dropzone-share');
+    if (labDropShare) {
+      labDropShare.addEventListener('click', () => {
+        if (this.inputImportPackage) this.inputImportPackage.click();
+      });
+    }
 
     // タブナビゲーションの切り替え（プロパティが枠内にすっきり収まる）
     const tabBtns = document.querySelectorAll('.settings-tabs-nav .tab-btn');
@@ -1104,7 +1126,7 @@ class ClockApp {
       const items = e.dataTransfer.items;
       if (!items || items.length === 0) return;
 
-      this.showToast('素材フォルダを解析中...');
+      this.showToast('部品フォルダを解析中...');
       const scannedFiles = await this.scanFilesFromDataTransfer(items);
       if (scannedFiles.length > 0) {
         // ZIPファイルが含まれている場合
@@ -1116,13 +1138,13 @@ class ClockApp {
 
         await this.processImportedFileList(scannedFiles, 'ドロップ');
       } else {
-        this.showToast('有効な動画または画像素材が見つかりませんでした');
+        this.showToast('有効な部品素材が見つかりませんでした');
       }
     });
 
     // 再読み込みボタン
     this.btnReloadAssets.addEventListener('click', () => {
-      this.showToast('アセットを再読み込みします...');
+      this.showToast('部品アセットを再読み込みします...');
       this.startPreload();
     });
 
@@ -1375,7 +1397,7 @@ class ClockApp {
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(shareUrl);
-          this.showToast('共有リンクをクリップボードにコピーしました！');
+          this.showToast('設計パラメータの共有リンクを複製しました！');
         } else {
           prompt('以下のURLをコピーして共有してください:', shareUrl);
         }
@@ -1608,7 +1630,7 @@ class ClockApp {
     a.download = `digiclock_config_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    this.showToast('設定ファイルをダウンロードしました');
+    this.showToast('設計図JSONをダウンロード保存しました');
   }
 
   /**
@@ -1620,9 +1642,9 @@ class ClockApp {
       try {
         const parsed = JSON.parse(e.target.result);
         this.applyConfig(parsed, true);
-        this.showToast('設定ファイルを適用しました');
+        this.showToast('設計図JSONを適用しました');
       } catch (err) {
-        alert('設定ファイルの読み込みに失敗しました。正しいJSON形式か確認してください。');
+        alert('設計図ファイルの読み込みに失敗しました。正しいJSON形式か確認してください。');
       }
     };
     reader.readAsText(file);
@@ -1743,7 +1765,7 @@ class ClockApp {
     }
 
     try {
-      this.showToast('作品パッケージを生成中...');
+      this.showToast('製品パッケージを出荷準備中...');
       const zip = new JSZip();
 
       // 1. 設定JSON
@@ -1790,7 +1812,7 @@ class ClockApp {
       }
 
       if (assetCount === 0) {
-        const proceed = confirm('ローカルから読み込まれたアニメーション素材（動画/連番画像）がありません。\n設定JSONのみをZIPパッケージとして出力しますか？');
+        const proceed = confirm('ローカルから読み込まれたアニメーション部品（動画/連番画像）がありません。\n設計図JSONのみを製品ZIPとして出荷しますか？');
         if (!proceed) return;
       }
 
@@ -1813,10 +1835,10 @@ class ClockApp {
       a.click();
       URL.revokeObjectURL(url);
 
-      this.showToast(`作品パッケージ「${downloadName}」をダウンロードしました！`);
+      this.showToast(`製品「${downloadName}」を出荷しました！`);
     } catch (err) {
       console.error('ZIP export error:', err);
-      alert('作品パッケージの生成に失敗しました: ' + err.message);
+      alert('製品パッケージの出荷に失敗しました: ' + err.message);
     }
   }
 
@@ -1831,7 +1853,7 @@ class ClockApp {
     }
 
     try {
-      this.showToast('ZIPパッケージを展開中...');
+      this.showToast('製品パッケージを展開中...');
       const zip = await JSZip.loadAsync(zipFile);
 
       let detectedConfig = null;
@@ -1943,7 +1965,7 @@ class ClockApp {
         if (result.detectedMode === 'webm') this.radioWebm.checked = true;
         else this.radioPng.checked = true;
         this.updateModeHelpText(result.detectedMode);
-        animInfo = `${result.total} 個の素材（${result.detectedMode.toUpperCase()}）`;
+        animInfo = `${result.total} 個の部品（${result.detectedMode.toUpperCase()}）`;
       }
 
       // 設定の復元
@@ -1955,15 +1977,15 @@ class ClockApp {
 
       const summaryParts = [];
       if (animInfo) summaryParts.push(animInfo);
-      if (detectedConfig) summaryParts.push('設定JSON');
+      if (detectedConfig) summaryParts.push('設計図');
       if (soundCount > 0) summaryParts.push(`音声${soundCount}件`);
-      if (bgLoaded) summaryParts.push('背景');
+      if (bgLoaded) summaryParts.push('外装');
 
       const summaryText = summaryParts.length > 0 ? ` (${summaryParts.join(', ')})` : '';
-      this.showToast(`ZIPパッケージ「${zipFile.name}」を正常に展開しました！${summaryText}`);
+      this.showToast(`製品「${zipFile.name}」を正常にロードしました！${summaryText}`);
     } catch (err) {
       console.error('ZIP import error:', err);
-      alert('ZIPパッケージの読み込みに失敗しました: ' + err.message);
+      alert('製品パッケージの読み込みに失敗しました: ' + err.message);
     }
   }
 
@@ -1981,7 +2003,7 @@ class ClockApp {
     const defaultConfig = this.getDefaultConfig();
     this.applyConfig(defaultConfig, true);
     this.startPreload();
-    this.showToast('設定を初期状態にリセットしました');
+    this.showToast('設計を初期状態にリセットしました');
   }
 
   /**

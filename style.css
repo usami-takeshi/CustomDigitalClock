@@ -272,6 +272,51 @@ html, body {
 }
 
 /* ==========================================================================
+   ドロップ案内インジケータ（画面下部・控えめで洗練されたピル型）
+   ========================================================================== */
+.drop-hint-pill {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px dashed rgba(59, 130, 246, 0.45);
+  border-radius: 30px;
+  backdrop-filter: blur(10px);
+  color: #94a3b8;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: all 0.25s ease;
+  user-select: none;
+}
+
+.drop-hint-pill:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: #60a5fa;
+  color: #f1f5f9;
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+}
+
+.drop-hint-pill .hint-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* 開発室オープン時はピルを半透明化 */
+body.settings-open .drop-hint-pill {
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+/* ==========================================================================
    設定トグルボタン
    ========================================================================== */
 .btn-toggle-settings {
@@ -328,17 +373,35 @@ html, body {
 }
 
 .settings-header {
-  padding: 16px 20px;
+  padding: 14px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--panel-border);
 }
 
+.settings-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .settings-header h2 {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.03em;
   color: #fff;
+}
+
+.settings-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.4);
 }
 
 .btn-close {
@@ -517,12 +580,28 @@ html, body {
   cursor: pointer;
   transition: all 0.2s ease;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .btn-action:hover {
   background: rgba(59, 130, 246, 0.22);
   border-color: #60a5fa;
   color: #fff;
+}
+
+/* プライマリアクション（製品出荷など） */
+.btn-primary-action {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(16, 185, 129, 0.22));
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  color: #bfdbfe;
+  font-weight: 600;
+}
+
+.btn-primary-action:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.38), rgba(16, 185, 129, 0.32));
+  border-color: #93c5fd;
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.25);
 }
 
 .btn-folder-pick {
@@ -534,6 +613,48 @@ html, body {
 .btn-folder-pick:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
+}
+
+/* ==========================================================================
+   開発室内のドロップゾーン
+   ========================================================================== */
+.lab-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 13px 12px;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1.5px dashed rgba(59, 130, 246, 0.35);
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 4px;
+  user-select: none;
+}
+
+.lab-dropzone:hover {
+  background: rgba(30, 41, 59, 0.65);
+  border-color: #60a5fa;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.2);
+}
+
+.lab-dropzone .dropzone-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.lab-dropzone .dropzone-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.lab-dropzone .dropzone-sub {
+  font-size: 10px;
+  color: var(--panel-muted);
 }
 
 /* セグメント切り替え（WebM / PNG） */

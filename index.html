@@ -12,8 +12,8 @@
   <div id="drag-drop-overlay" class="drag-drop-overlay">
     <div class="drag-drop-card">
       <div class="drag-drop-icon">📥</div>
-      <h3>素材フォルダや作品ZIPをドロップ</h3>
-      <p>作品ZIPファイル、素材フォルダ、動画ファイルなどをここに放り込んでください（設定JSONも自動反映されます）</p>
+      <h3>製品ZIP または 部品フォルダをドロップ</h3>
+      <p>アニメーション部品・音響・設計値を自動ロードして即時反映します</p>
     </div>
   </div>
 
@@ -72,28 +72,36 @@
 
     <!-- 簡易ステータス通知（トースト） -->
     <div id="status-toast" class="status-toast"></div>
+
+    <!-- 常設ドロップガイド（画面下部・控えめで洗練されたデザイン） -->
+    <div id="drop-hint-pill" class="drop-hint-pill" title="クリックでパッケージ選択 / ここに直接ドロップ可能">
+      <span class="hint-icon">📥</span>
+      <span class="hint-text">製品ZIP / 部品フォルダをドロップして展開</span>
+    </div>
   </main>
 
-  <!-- 設定トグルボタン -->
-  <button id="btn-toggle-settings" class="btn-toggle-settings" title="設定パネルを開く/閉じる" aria-label="設定">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="3"></circle>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+  <!-- 時計開発室 トグルボタン -->
+  <button id="btn-toggle-settings" class="btn-toggle-settings" title="時計開発室を開く/閉じる" aria-label="開発室">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
     </svg>
-    <span>設定</span>
+    <span>開発室</span>
   </button>
 
-  <!-- 開発者 / ユーザ向け設定パネル（サイドドロワー） -->
+  <!-- 時計開発室パネル（サイドドロワー） -->
   <aside id="settings-panel" class="settings-panel">
     <div class="settings-header">
-      <h2>設定</h2>
+      <div class="settings-header-title">
+        <h2>時計開発室</h2>
+        <span class="settings-badge">CLOCK LAB</span>
+      </div>
       <button id="btn-close-settings" class="btn-close" aria-label="閉じる">&times;</button>
     </div>
 
-    <!-- 動作モード（現在時刻同期） -->
+    <!-- 動作モード（通常動作 / 現在時刻） -->
     <div class="settings-top-bar">
       <div class="button-group">
-        <button id="btn-mode-clock" class="btn active" title="実時間の時計表示に復帰">🕒 現在時刻に同期</button>
+        <button id="btn-mode-clock" class="btn active" title="通常の実稼働時計表示に復帰">🕒 現在時刻</button>
       </div>
     </div>
 
@@ -101,37 +109,44 @@
     <nav class="settings-tabs-nav" id="settings-tabs-nav">
       <button type="button" class="tab-btn active" data-tab="tab-assets">
         <span class="tab-icon">📁</span>
-        <span class="tab-text">素材</span>
+        <span class="tab-text">部品</span>
       </button>
       <button type="button" class="tab-btn" data-tab="tab-display">
         <span class="tab-icon">📐</span>
-        <span class="tab-text">表示</span>
+        <span class="tab-text">構造</span>
       </button>
       <button type="button" class="tab-btn" data-tab="tab-theme">
         <span class="tab-icon">🖼️</span>
-        <span class="tab-text">背景</span>
+        <span class="tab-text">外装</span>
       </button>
       <button type="button" class="tab-btn" data-tab="tab-sound">
         <span class="tab-icon">🔊</span>
-        <span class="tab-text">音</span>
+        <span class="tab-text">音響</span>
       </button>
       <button type="button" class="tab-btn" data-tab="tab-share">
-        <span class="tab-icon">💾</span>
-        <span class="tab-text">共有</span>
+        <span class="tab-icon">📦</span>
+        <span class="tab-text">出荷</span>
       </button>
     </nav>
 
     <!-- タブコンテンツエリア（ここだけがスクロールする） -->
     <div class="settings-tab-content-area">
       <!-- ==============================================================
-           タブ①: 素材形式・アセット
+           タブ①: 部品アセット
            ============================================================== -->
       <div class="tab-pane active" id="tab-assets">
+        <!-- ドロップゾーン（開発室内の常設インジケータ） -->
+        <div class="lab-dropzone" id="lab-dropzone-assets" title="製品ZIPまたは部品フォルダをドロップ">
+          <div class="dropzone-icon">📥</div>
+          <div class="dropzone-text">製品ZIP または 部品フォルダをドロップ</div>
+          <div class="dropzone-sub">素材・音響・設計値を自動セットアップ</div>
+        </div>
+
         <div class="control-group">
-          <label class="sub-label">素材形式（フォーマット）</label>
+          <label class="sub-label">部品規格（フォーマット）</label>
           <div class="segmented-control">
             <input type="radio" id="mode-webm" name="asset-mode" value="webm" checked>
-            <label for="mode-webm">透過動画 (WebM/MP4)</label>
+            <label for="mode-webm">透過動画 (WebM)</label>
             <input type="radio" id="mode-png" name="asset-mode" value="png">
             <label for="mode-png">連番画像 (PNG)</label>
           </div>
@@ -143,19 +158,19 @@
         <div class="action-buttons-row">
           <button id="btn-open-folder" class="btn-action" title="素材配置フォルダをFinderで開く / パスをコピー">
             <span class="icon">📂</span>
-            <span id="txt-open-folder-label">対象フォルダを開く</span>
+            <span id="txt-open-folder-label">格納先</span>
           </button>
           <label for="input-folder-picker" class="btn-action btn-folder-pick" title="ローカルのフォルダをブラウザに直接読み込み">
             <span class="icon">📥</span>
-            <span>フォルダ選択読込</span>
+            <span>フォルダ読込</span>
             <input type="file" id="input-folder-picker" webkitdirectory directory multiple style="display:none">
           </label>
         </div>
 
         <div class="control-group">
           <div class="section-title-row">
-            <label class="sub-label">アセット読み込み状態</label>
-            <button id="btn-reload-assets" class="btn-sm">再読み込み</button>
+            <label class="sub-label">部品読込状況</label>
+            <button id="btn-reload-assets" class="btn-sm">再読込</button>
           </div>
           <div class="progress-bar-container">
             <div id="preload-progress-bar" class="progress-bar" style="width: 0%;"></div>
@@ -163,7 +178,7 @@
           <div id="preload-status-text" class="status-indicator">プリロード準備中...</div>
           
           <details class="asset-list-details" open>
-            <summary>各パターンの読み込み状況</summary>
+            <summary>各遷移パターンの読込状況</summary>
             <ul id="asset-pattern-list" class="asset-pattern-list">
               <!-- JSで動的に生成 -->
             </ul>
@@ -172,8 +187,8 @@
 
         <!-- 12種類の個別パターンテスト再生 -->
         <div class="control-group">
-          <label class="sub-label">個別パターンのテスト再生（12種類）</label>
-          <p class="section-help">タップするとそのパターンのアニメーションと音が再生されます</p>
+          <label class="sub-label">動作検証ベンチ（12種）</label>
+          <p class="section-help">タップで各数値の遷移アニメーションと音響を検証します</p>
           <div class="pattern-test-grid">
             <button type="button" class="btn-pat-test" data-from="0" data-to="1">0→1</button>
             <button type="button" class="btn-pat-test" data-from="1" data-to="2">1→2</button>
@@ -191,14 +206,14 @@
         </div>
 
         <div class="guide-box">
-          <h3>💡 素材配置ルール</h3>
-          <p><strong>動画:</strong> <code>assets/webm/0_to_1.webm</code> など</p>
-          <p><strong>連番:</strong> <code>assets/png/0_to_1/frame_00.png</code> など</p>
+          <h3>💡 部品格納規格</h3>
+          <p><strong>動画:</strong> <code>assets/webm/0_to_1.webm</code> 等</p>
+          <p><strong>連番:</strong> <code>assets/png/0_to_1/frame_00.png</code> 等</p>
         </div>
       </div>
 
       <!-- ==============================================================
-           タブ②: 表示・文字間隔オプション
+           タブ②: 構造・間隔オプション
            ============================================================== -->
       <div class="tab-pane" id="tab-display">
         <!-- 時計サイズ（最大200%まで調整可） -->
@@ -213,26 +228,26 @@
         <!-- 数字同士の間隔（前後: -100px 〜 100px） -->
         <div class="slider-row">
           <div class="slider-label-row">
-            <span>数字前後の間隔（文字間）</span>
+            <span>文字間隔（桁マージン）</span>
             <span id="txt-digit-gap-value" class="value-badge">-100px</span>
           </div>
           <input type="range" id="rng-digit-gap" min="-100" max="100" step="2" value="-100">
-          <span class="slider-hint">各数字（桁）同士の左右の空き（-100pxまで重ねられます）</span>
+          <span class="slider-hint">各数字同士の間隔（-100pxまで重ね合わせ可能）</span>
         </div>
 
         <!-- コロン前後の間隔: -100px 〜 100px -->
         <div class="slider-row">
           <div class="slider-label-row">
-            <span>コロン前後の間隔</span>
+            <span>コロン間隔（余白）</span>
             <span id="txt-colon-margin-value" class="value-badge">-2px</span>
           </div>
           <input type="range" id="rng-colon-margin" min="-100" max="100" step="2" value="-2">
-          <span class="slider-hint">コロン（:）と数字の間の左右余白を調整します</span>
+          <span class="slider-hint">コロン（:）前後の余白調整</span>
         </div>
 
         <!-- トグルスイッチ群 -->
         <div class="setting-row">
-          <span>コロンの点滅</span>
+          <span>コロン点滅</span>
           <label class="switch">
             <input type="checkbox" id="chk-blink-colon" checked>
             <span class="slider"></span>
@@ -240,7 +255,7 @@
         </div>
 
         <div class="setting-row">
-          <span>素材未配置時のダミー描画</span>
+          <span>未実装ダミー描画</span>
           <label class="switch">
             <input type="checkbox" id="chk-fallback" checked>
             <span class="slider"></span>
@@ -248,7 +263,7 @@
         </div>
 
         <div class="setting-row">
-          <span>枠線ガイド（配置確認用）</span>
+          <span>構造ガイド枠線</span>
           <label class="switch">
             <input type="checkbox" id="chk-guidelines">
             <span class="slider"></span>
@@ -257,7 +272,7 @@
       </div>
 
       <!-- ==============================================================
-           タブ③: 背景・テーマ設定
+           タブ③: 外装・テーマ設定
            ============================================================== -->
       <div class="tab-pane" id="tab-theme">
         <!-- 基本カラー -->
@@ -274,13 +289,13 @@
 
         <!-- 背景メディア（映像 / 画像）アップロード -->
         <div class="control-group">
-          <label class="sub-label">背景映像 / 画像の追加</label>
+          <label class="sub-label">外装メディア（動画 / 画像）</label>
           <div class="file-upload-box">
             <label for="input-bg-file" class="btn-file-select">
-              <span>📁 メディアを選択 (動画 / 画像)</span>
+              <span>📁 外装選択</span>
               <input type="file" id="input-bg-file" accept="image/*,video/*" style="display:none">
             </label>
-            <button id="btn-clear-bg" class="btn-sm btn-danger" style="display:none;">削除</button>
+            <button id="btn-clear-bg" class="btn-sm btn-danger" style="display:none;">解除</button>
           </div>
           <div id="txt-bg-filename" class="file-status-text">未選択（単色背景）</div>
         </div>
@@ -288,7 +303,7 @@
         <!-- 背景オーバーレイ暗さ調整 -->
         <div class="slider-row">
           <div class="slider-label-row">
-            <span>背景の暗さ（文字強調）</span>
+            <span>外装減光（文字強調）</span>
             <span id="txt-bg-dim-value" class="value-badge">30%</span>
           </div>
           <input type="range" id="rng-bg-dim" min="0" max="95" step="5" value="30">
@@ -297,7 +312,7 @@
         <!-- 背景ぼかし調整 -->
         <div class="slider-row">
           <div class="slider-label-row">
-            <span>背景のぼかし (Blur)</span>
+            <span>外装ぼかし</span>
             <span id="txt-bg-blur-value" class="value-badge">0px</span>
           </div>
           <input type="range" id="rng-bg-blur" min="0" max="25" step="1" value="0">
@@ -305,14 +320,14 @@
       </div>
 
       <!-- ==============================================================
-           タブ④: 音（サウンド）設定
+           タブ④: 音響（サウンド）設定
            ============================================================== -->
       <div class="tab-pane" id="tab-sound">
         <!-- 動画音声と全体音量 -->
         <div class="setting-row">
           <div>
-            <div>素材動画の音を鳴らす</div>
-            <div class="setting-subtext">WebM/MP4に含まれる音声を再生</div>
+            <div>動画内包音声を再生</div>
+            <div class="setting-subtext">WebM/MP4の音声トラックを鳴らす</div>
           </div>
           <label class="switch">
             <input type="checkbox" id="chk-video-sound">
@@ -322,7 +337,7 @@
 
         <div class="slider-row">
           <div class="slider-label-row">
-            <span>全体音量</span>
+            <span>マスター音量</span>
             <span id="txt-volume-value" class="value-badge">70%</span>
           </div>
           <input type="range" id="rng-volume" min="0" max="100" step="5" value="70">
@@ -333,20 +348,20 @@
         <!-- ① 秒の音 -->
         <div class="sound-tier-card">
           <div class="sound-tier-header">
-            <label class="sub-label">⏱️ 秒の音（毎秒）</label>
-            <button type="button" class="btn-play-sound" id="btn-preview-sec" title="秒音を試聴">▶ 試聴</button>
+            <label class="sub-label">⏱️ 秒針音（毎秒）</label>
+            <button type="button" class="btn-play-sound" id="btn-preview-sec" title="秒針音を試聴">試聴</button>
           </div>
           <div class="sound-select-row">
             <select id="select-sound-sec" class="custom-select">
-              <option value="analog">アナログ秒針音 (コチッ)</option>
-              <option value="digital">デジタル秒針音 (ピッ)</option>
+              <option value="analog">アナログ秒針 (コチッ)</option>
+              <option value="digital">デジタル秒針 (ピッ)</option>
               <option value="custom">カスタム音声ファイル...</option>
-              <option value="none">なし (消音)</option>
+              <option value="none">消音 (なし)</option>
             </select>
           </div>
           <div class="custom-sound-upload" id="upload-sec" style="display:none;">
             <label for="input-sound-sec" class="btn-file-select btn-sm-file">
-              <span>🎵 秒の音声を選択</span>
+              <span>秒音選択</span>
               <input type="file" id="input-sound-sec" accept="audio/*" style="display:none">
             </label>
             <span id="txt-sound-sec-name" class="file-status-text">未選択</span>
@@ -356,20 +371,20 @@
         <!-- ② 分の音 -->
         <div class="sound-tier-card">
           <div class="sound-tier-header">
-            <label class="sub-label">🔔 分の音（毎分00秒）</label>
-            <button type="button" class="btn-play-sound" id="btn-preview-min" title="分音を試聴">▶ 試聴</button>
+            <label class="sub-label">🔔 報時音（毎分00秒）</label>
+            <button type="button" class="btn-play-sound" id="btn-preview-min" title="分報時音を試聴">試聴</button>
           </div>
           <div class="sound-select-row">
             <select id="select-sound-min" class="custom-select">
-              <option value="analog">アナログ時計音 (カチャッ)</option>
-              <option value="digital">デジタル報時音 (ピピッ)</option>
+              <option value="analog">時計音 (カチャッ)</option>
+              <option value="digital">報時音 (ピピッ)</option>
               <option value="custom">カスタム音声ファイル...</option>
-              <option value="none" selected>なし (秒音に従う)</option>
+              <option value="none" selected>消音 (秒音に従う)</option>
             </select>
           </div>
           <div class="custom-sound-upload" id="upload-min" style="display:none;">
             <label for="input-sound-min" class="btn-file-select btn-sm-file">
-              <span>🎵 分の音声を選択</span>
+              <span>分音選択</span>
               <input type="file" id="input-sound-min" accept="audio/*" style="display:none">
             </label>
             <span id="txt-sound-min-name" class="file-status-text">未選択</span>
@@ -379,20 +394,20 @@
         <!-- ③ 時の音 -->
         <div class="sound-tier-card">
           <div class="sound-tier-header">
-            <label class="sub-label">🕰️ 時の音（毎時00分00秒）</label>
-            <button type="button" class="btn-play-sound" id="btn-preview-hour" title="時音を試聴">▶ 試聴</button>
+            <label class="sub-label">🕰️ 時報音（毎時00分）</label>
+            <button type="button" class="btn-play-sound" id="btn-preview-hour" title="時報音を試聴">試聴</button>
           </div>
           <div class="sound-select-row">
             <select id="select-sound-hour" class="custom-select">
-              <option value="bell">ごーんごーん (鐘の音)</option>
-              <option value="cuckoo">ぽっぽぽっぽ (鳩時計)</option>
+              <option value="bell">大時計鐘 (ごーん)</option>
+              <option value="cuckoo">鳩時計 (ぽっぽ)</option>
               <option value="custom">カスタム音声ファイル...</option>
-              <option value="none" selected>なし (秒・分音に従う)</option>
+              <option value="none" selected>消音 (通常音に従う)</option>
             </select>
           </div>
           <div class="custom-sound-upload" id="upload-hour" style="display:none;">
             <label for="input-sound-hour" class="btn-file-select btn-sm-file">
-              <span>🎵 時の音声を選択</span>
+              <span>時音選択</span>
               <input type="file" id="input-sound-hour" accept="audio/*" style="display:none">
             </label>
             <span id="txt-sound-hour-name" class="file-status-text">未選択</span>
@@ -401,23 +416,30 @@
       </div>
 
       <!-- ==============================================================
-           タブ⑤: 設定の保存・読込・共有
+           タブ⑤: 製品出荷・設計図保存
            ============================================================== -->
       <div class="tab-pane" id="tab-share">
-        <!-- 課題提出・作品パッケージ（ZIP一括） -->
+        <!-- ドロップゾーン -->
+        <div class="lab-dropzone" id="lab-dropzone-share" title="製品ZIPまたは部品フォルダをドロップ">
+          <div class="dropzone-icon">📥</div>
+          <div class="dropzone-text">製品ZIP または 部品フォルダをドロップ</div>
+          <div class="dropzone-sub">ドラッグ＆ドロップで即座に復元・展開</div>
+        </div>
+
+        <!-- 製品出荷・読込（ZIP一括） -->
         <div class="control-group">
-          <label class="sub-label">📦 課題提出・作品パッケージ (ZIP一括)</label>
+          <label class="sub-label">📦 完成品パッケージ (ZIP)</label>
           <p class="section-help">
-            アニメーション素材と時計の表示設定を1つのZIPファイルにまとめます。学生の課題提出や作品バックアップに最適です！
+            組み上げたアニメーション部品・音響・設計値を1つの製品ZIPにまとめます。
           </p>
           <div class="action-buttons-row">
-            <button id="btn-export-package" class="btn-action" title="素材と設定を1つのZIPファイルにまとめて書き出し">
+            <button id="btn-export-package" class="btn-action btn-primary-action" title="素材と設計値を1つのZIP製品として書き出し">
               <span class="icon">📦</span>
-              <span>作品パッケージ保存 (.zip)</span>
+              <span>製品出荷</span>
             </button>
-            <label for="input-import-package" class="btn-action btn-folder-pick" title="提出されたZIP作品パッケージを一括読み込み">
+            <label for="input-import-package" class="btn-action btn-folder-pick" title="ZIP製品パッケージを一括読み込み">
               <span class="icon">📂</span>
-              <span>パッケージ読込 (.zip)</span>
+              <span>製品読込</span>
               <input type="file" id="input-import-package" accept=".zip" style="display:none">
             </label>
           </div>
@@ -425,37 +447,37 @@
 
         <hr class="section-divider">
 
-        <!-- デザイン設定のURL共有 -->
+        <!-- 設計パラメータ共有 -->
         <div class="control-group">
-          <label class="sub-label">🔗 デザイン設定のURL共有</label>
-          <button id="btn-copy-share-url" class="btn-action" title="現在のカスタマイズ設定を含んだ共有URLをコピー">
+          <label class="sub-label">🔗 設計パラメータ共有</label>
+          <button id="btn-copy-share-url" class="btn-action" title="現在の設計値を含むURLをクリップボードにコピー">
             <span class="icon">🔗</span>
-            <span>共有リンクをコピー</span>
+            <span>リンク複製</span>
           </button>
           <p class="section-help">
-            設定パラメータ（サイズ・文字間隔・配色・音など）を含んだURLをコピーします。
+            サイズや配置、配色などの設計パラメータを含んだURLを複製します。
           </p>
         </div>
 
-        <!-- 設定JSON単体の保存・読込 -->
+        <!-- 設計図ファイル単体の保存・読込 -->
         <div class="control-group">
-          <label class="sub-label">⚙️ 設定JSONファイル単体の保存・読込</label>
+          <label class="sub-label">⚙️ 設計図ファイル (JSON)</label>
           <div class="action-buttons-row">
-            <button id="btn-export-config" class="btn-action" title="設定のみをJSONファイルとして保存">
+            <button id="btn-export-config" class="btn-action" title="設計値のみをJSONファイルとして保存">
               <span class="icon">📥</span>
-              <span>設定JSONを保存</span>
+              <span>設計図保存</span>
             </button>
-            <label for="input-import-config" class="btn-action btn-folder-pick" title="保存したJSON設定ファイルを読み込み">
+            <label for="input-import-config" class="btn-action btn-folder-pick" title="保存した設計図JSONを読み込み">
               <span class="icon">📤</span>
-              <span>設定JSONを読込</span>
+              <span>設計図読込</span>
               <input type="file" id="input-import-config" accept=".json" style="display:none">
             </label>
           </div>
         </div>
 
         <div class="setting-row" style="margin-top: 8px;">
-          <span style="color: var(--panel-muted);">設定の初期化</span>
-          <button id="btn-reset-config" class="btn-sm btn-danger">初期設定に戻す</button>
+          <span style="color: var(--panel-muted);">設計の初期化</span>
+          <button id="btn-reset-config" class="btn-sm btn-danger">初期化</button>
         </div>
       </div>
     </div>
