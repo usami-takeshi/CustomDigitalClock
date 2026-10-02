@@ -73,6 +73,11 @@ class SoundEngine {
       min: null,
       hour: null
     };
+    this.customFiles = {
+      sec: null,
+      min: null,
+      hour: null
+    };
     this.volume = 0.7; // 0.0 〜 1.0
   }
 
@@ -107,6 +112,7 @@ class SoundEngine {
   }
 
   setCustomAudio(tier, file) {
+    this.customFiles[tier] = file;
     this.ensureContext();
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -346,6 +352,10 @@ class AssetManager {
       png: {},
       webm: {}
     };
+    this.rawFiles = {
+      png: {},
+      webm: {}
+    };
     this.onProgressCallback = null;
   }
 
@@ -362,18 +372,39 @@ class AssetManager {
   }
 
   /**
-   * フォルダ選択ダイアログから受け取ったFileListをメモリ内アセットとして登録
+   * フォルダ選択ダイアログやZIP展開から受け取ったFileListをメモリ内アセットとして登録
+   * フォルダ内に digiclock_config.json 等の設定ファイルが含まれている場合は自動解析して返す
    */
-  loadFromFolderFiles(fileList) {
+  async loadFromFolderFiles(fileList) {
     let webmCount = 0;
     let pngCount = 0;
+    let detectedConfig = null;
+
     for (const file of fileList) {
       const relPath = file.fullPathEntry || file.webkitRelativePath || file.name;
+      const lowerName = file.name.toLowerCase();
+
+      // JSON設定ファイルがあれば自動検出して解析
+      if (lowerName.endsWith('.json') && !detectedConfig) {
+        try {
+          const text = await file.text();
+          detectedConfig = JSON.parse(text);
+        } catch (_) {}
+      }
+
+      // 背景や音声は数字アニメーション素材から除外
+      const lowerRel = relPath.toLowerCase();
+      if (lowerRel.includes('/bg/') || lowerRel.includes('assets/bg/') || lowerName.startsWith('bg_') || lowerName.startsWith('background') ||
+          lowerRel.includes('/sounds/') || lowerName.startsWith('sec_') || lowerName.startsWith('min_') || lowerName.startsWith('hour_')) {
+        continue;
+      }
+
       // webm / mp4 のマッチ (例: .../0_to_1.webm)
       if (relPath.endsWith('.webm') || relPath.endsWith('.mp4')) {
         const fileName = file.name.replace(/\.[^.]+$/, '');
         const blobUrl = URL.createObjectURL(file);
         this.blobOverrides.webm[fileName] = blobUrl;
+        this.rawFiles.webm[fileName] = file;
         webmCount++;
       }
       // png のマッチ (例: .../0_to_1/frame_00.png)
@@ -384,12 +415,14 @@ class AssetManager {
           const folderName = parts[parts.length - 2];
           if (!this.blobOverrides.png[folderName]) {
             this.blobOverrides.png[folderName] = [];
+            this.rawFiles.png[folderName] = [];
           }
           this.blobOverrides.png[folderName].push({
             name: file.name,
             file: file,
             blobUrl: URL.createObjectURL(file)
           });
+          this.rawFiles.png[folderName].push(file);
           pngCount++;
         }
       }
@@ -401,7 +434,13 @@ class AssetManager {
     } else if (pngCount > 0 && webmCount === 0) {
       this.currentMode = 'png';
     }
-    return { webmCount, pngCount, total: webmCount + pngCount, detectedMode: this.currentMode };
+    return { 
+      webmCount, 
+      pngCount, 
+      total: webmCount + pngCount, 
+      detectedMode: this.currentMode,
+      detectedConfig 
+    };
   }
 
   /**
@@ -947,10 +986,13 @@ class ClockApp {
     this.soundHourType = 'none';
 
     // 保存・読込・共有
+    this.btnExportPackage = document.getElementById('btn-export-package');
+    this.inputImportPackage = document.getElementById('input-import-package');
     this.btnCopyShareUrl = document.getElementById('btn-copy-share-url');
     this.btnExportConfig = document.getElementById('btn-export-config');
     this.inputImportConfig = document.getElementById('input-import-config');
     this.btnResetConfig = document.getElementById('btn-reset-config');
+    this.customBgFile = null;
   }
 
   initDigits() {
@@ -1019,19 +1061,14 @@ class ClockApp {
     });
 
     // フォルダ直接選択読込
-    this.inputFolderPicker.addEventListener('change', (e) => {
+    this.inputFolderPicker.addEventListener('change', async (e) => {
       const files = e.target.files;
       if (files && files.length > 0) {
-        const result = this.assetManager.loadFromFolderFiles(files);
-        if (result.detectedMode === 'webm') this.radioWebm.checked = true;
-        else this.radioPng.checked = true;
-        this.updateModeHelpText(result.detectedMode);
-        this.showToast(`フォルダから ${result.total} 個の素材（${result.detectedMode.toUpperCase()}）を読み込みました`);
-        this.startPreload();
+        await this.processImportedFileList(files, '選択フォルダ');
       }
     });
 
-    // 全画面ドラッグ＆ドロップ受付（フォルダ再帰解析）
+    // 全画面ドラッグ＆ドロップ受付（フォルダ再帰解析・ZIP対応）
     let dragCounter = 0;
     window.addEventListener('dragenter', (e) => {
       e.preventDefault();
@@ -1057,18 +1094,27 @@ class ClockApp {
       dragCounter = 0;
       if (this.dragDropOverlay) this.dragDropOverlay.classList.remove('drag-active');
 
+      const files = e.dataTransfer.files;
+      // 単一ZIPファイルのドロップを直接展開
+      if (files && files.length === 1 && files[0].name.toLowerCase().endsWith('.zip')) {
+        await this.importZipPackage(files[0]);
+        return;
+      }
+
       const items = e.dataTransfer.items;
       if (!items || items.length === 0) return;
 
       this.showToast('素材フォルダを解析中...');
       const scannedFiles = await this.scanFilesFromDataTransfer(items);
       if (scannedFiles.length > 0) {
-        const result = this.assetManager.loadFromFolderFiles(scannedFiles);
-        if (result.detectedMode === 'webm') this.radioWebm.checked = true;
-        else this.radioPng.checked = true;
-        this.updateModeHelpText(result.detectedMode);
-        this.showToast(`ドロップから ${result.total} 個の素材（${result.detectedMode.toUpperCase()}）を読み込みました！`);
-        this.startPreload();
+        // ZIPファイルが含まれている場合
+        const zipFile = scannedFiles.find(f => f.name.toLowerCase().endsWith('.zip'));
+        if (zipFile) {
+          await this.importZipPackage(zipFile);
+          return;
+        }
+
+        await this.processImportedFileList(scannedFiles, 'ドロップ');
       } else {
         this.showToast('有効な動画または画像素材が見つかりませんでした');
       }
@@ -1138,6 +1184,7 @@ class ClockApp {
       const file = e.target.files[0];
       if (!file) return;
 
+      this.customBgFile = file;
       const fileUrl = URL.createObjectURL(file);
       this.txtBgFilename.textContent = file.name;
       this.btnClearBg.style.display = 'inline-block';
@@ -1161,6 +1208,7 @@ class ClockApp {
 
     // 背景メディア削除
     this.btnClearBg.addEventListener('click', () => {
+      this.customBgFile = null;
       this.bgVideo.classList.remove('active');
       this.bgVideo.pause();
       this.bgVideo.src = '';
@@ -1302,6 +1350,24 @@ class ClockApp {
     autoSaveElements.forEach(el => {
       if (el) el.addEventListener('change', () => this.saveToStorage());
     });
+
+    // 作品パッケージ保存 (ZIPエクスポート)
+    if (this.btnExportPackage) {
+      this.btnExportPackage.addEventListener('click', () => {
+        this.exportZipPackage();
+      });
+    }
+
+    // 作品パッケージ読込 (ZIPインポート)
+    if (this.inputImportPackage) {
+      this.inputImportPackage.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          await this.importZipPackage(file);
+          e.target.value = '';
+        }
+      });
+    }
 
     // 共有リンクコピーボタン
     this.btnCopyShareUrl.addEventListener('click', async () => {
@@ -1560,6 +1626,345 @@ class ClockApp {
       }
     };
     reader.readAsText(file);
+  }
+
+  /**
+   * フォルダ選択やドロップから受け取ったファイル一覧を一括解析・反映
+   */
+  async processImportedFileList(files, sourceLabel = 'フォルダ') {
+    const mediaFiles = [];
+    let detectedConfig = null;
+    let soundCount = 0;
+    let bgLoaded = false;
+
+    for (const file of files) {
+      const relPath = file.fullPathEntry || file.webkitRelativePath || file.name;
+      const lowerPath = relPath.toLowerCase();
+      const baseName = file.name;
+
+      // 1. 設定JSON
+      if (lowerPath.endsWith('.json') && !detectedConfig) {
+        try {
+          const text = await file.text();
+          detectedConfig = JSON.parse(text);
+        } catch (_) {}
+        continue;
+      }
+
+      // 2. 背景メディア
+      if (lowerPath.includes('/bg/') || lowerPath.includes('assets/bg/') || baseName.startsWith('bg_') || baseName.startsWith('background')) {
+        this.customBgFile = file;
+        const fileUrl = URL.createObjectURL(file);
+        this.txtBgFilename.textContent = file.name;
+        this.btnClearBg.style.display = 'inline-block';
+        if (file.type.startsWith('video/') || baseName.endsWith('.mp4') || baseName.endsWith('.webm')) {
+          this.bgImage.classList.remove('active');
+          this.bgImage.src = '';
+          this.bgVideo.src = fileUrl;
+          this.bgVideo.classList.add('active');
+          this.bgVideo.play().catch(() => {});
+        } else {
+          this.bgVideo.classList.remove('active');
+          this.bgVideo.pause();
+          this.bgVideo.src = '';
+          this.bgImage.src = fileUrl;
+          this.bgImage.classList.add('active');
+        }
+        bgLoaded = true;
+        continue;
+      }
+
+      // 3. カスタム音声
+      if (lowerPath.includes('/sounds/') || baseName.startsWith('sec_') || baseName.startsWith('min_') || baseName.startsWith('hour_')) {
+        if (baseName.startsWith('sec_') || lowerPath.includes('/sounds/sec_')) {
+          this.soundEngine.setCustomAudio('sec', file);
+          this.txtSoundSecName.textContent = file.name;
+          this.soundSecType = 'custom';
+          this.selectSoundSec.value = 'custom';
+          this.uploadSec.style.display = 'flex';
+          soundCount++;
+          continue;
+        } else if (baseName.startsWith('min_') || lowerPath.includes('/sounds/min_')) {
+          this.soundEngine.setCustomAudio('min', file);
+          this.txtSoundMinName.textContent = file.name;
+          this.soundMinType = 'custom';
+          this.selectSoundMin.value = 'custom';
+          this.uploadMin.style.display = 'flex';
+          soundCount++;
+          continue;
+        } else if (baseName.startsWith('hour_') || lowerPath.includes('/sounds/hour_')) {
+          this.soundEngine.setCustomAudio('hour', file);
+          this.txtSoundHourName.textContent = file.name;
+          this.soundHourType = 'custom';
+          this.selectSoundHour.value = 'custom';
+          this.uploadHour.style.display = 'flex';
+          soundCount++;
+          continue;
+        }
+      }
+
+      // 4. アニメーション素材（動画・画像）
+      mediaFiles.push(file);
+    }
+
+    let animInfo = '';
+    if (mediaFiles.length > 0) {
+      const result = await this.assetManager.loadFromFolderFiles(mediaFiles);
+      if (result.detectedMode === 'webm') this.radioWebm.checked = true;
+      else this.radioPng.checked = true;
+      this.updateModeHelpText(result.detectedMode);
+      animInfo = `${result.total} 個の素材（${result.detectedMode.toUpperCase()}）`;
+    }
+
+    if (detectedConfig) {
+      this.applyConfig(detectedConfig, true);
+    }
+
+    this.startPreload();
+
+    const parts = [];
+    if (animInfo) parts.push(animInfo);
+    if (detectedConfig) parts.push('設定JSON');
+    if (soundCount > 0) parts.push(`音声${soundCount}件`);
+    if (bgLoaded) parts.push('背景');
+
+    const desc = parts.length > 0 ? parts.join(', ') : 'ファイルが検出されませんでした';
+    this.showToast(`${sourceLabel}から読み込みました: ${desc}`);
+  }
+
+  /**
+   * 作品パッケージ（ZIP）のエクスポート
+   * 設定JSON + 読み込まれているアニメーション素材（WebM / PNG） + 音声 + 背景 を1つのZIPにまとめる
+   */
+  async exportZipPackage() {
+    if (typeof JSZip === 'undefined') {
+      alert('ZIPライブラリ (JSZip) が読み込まれていません。ページを再読み込みしてください。');
+      return;
+    }
+
+    try {
+      this.showToast('作品パッケージを生成中...');
+      const zip = new JSZip();
+
+      // 1. 設定JSON
+      const cfg = this.getConfig();
+      zip.file('digiclock_config.json', JSON.stringify(cfg, null, 2));
+
+      // 2. WebM素材
+      let assetCount = 0;
+      const webmFiles = this.assetManager.rawFiles.webm;
+      for (const [pattern, file] of Object.entries(webmFiles)) {
+        if (file) {
+          zip.file(`assets/webm/${file.name}`, file);
+          assetCount++;
+        }
+      }
+
+      // 3. PNG素材
+      const pngFiles = this.assetManager.rawFiles.png;
+      for (const [pattern, list] of Object.entries(pngFiles)) {
+        if (Array.isArray(list)) {
+          for (const file of list) {
+            zip.file(`assets/png/${pattern}/${file.name}`, file);
+            assetCount++;
+          }
+        }
+      }
+
+      // 4. カスタム音声
+      if (this.soundEngine && this.soundEngine.customFiles) {
+        if (this.soundEngine.customFiles.sec) {
+          zip.file(`assets/sounds/sec_${this.soundEngine.customFiles.sec.name}`, this.soundEngine.customFiles.sec);
+        }
+        if (this.soundEngine.customFiles.min) {
+          zip.file(`assets/sounds/min_${this.soundEngine.customFiles.min.name}`, this.soundEngine.customFiles.min);
+        }
+        if (this.soundEngine.customFiles.hour) {
+          zip.file(`assets/sounds/hour_${this.soundEngine.customFiles.hour.name}`, this.soundEngine.customFiles.hour);
+        }
+      }
+
+      // 5. 背景ファイル
+      if (this.customBgFile) {
+        zip.file(`assets/bg/${this.customBgFile.name}`, this.customBgFile);
+      }
+
+      if (assetCount === 0) {
+        const proceed = confirm('ローカルから読み込まれたアニメーション素材（動画/連番画像）がありません。\n設定JSONのみをZIPパッケージとして出力しますか？');
+        if (!proceed) return;
+      }
+
+      // ZIPバイナリの生成とダウンロード
+      const blob = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      });
+
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const timeStamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+      const downloadName = `digiclock_work_${timeStamp}.zip`;
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = downloadName;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      this.showToast(`作品パッケージ「${downloadName}」をダウンロードしました！`);
+    } catch (err) {
+      console.error('ZIP export error:', err);
+      alert('作品パッケージの生成に失敗しました: ' + err.message);
+    }
+  }
+
+  /**
+   * 作品パッケージ（ZIP）のインポート
+   * ZIPを展開し、アニメーション素材・設定JSON・音声・背景を全自動でセットアップ
+   */
+  async importZipPackage(zipFile) {
+    if (typeof JSZip === 'undefined') {
+      alert('ZIPライブラリ (JSZip) が読み込まれていません。ページを再読み込みしてください。');
+      return;
+    }
+
+    try {
+      this.showToast('ZIPパッケージを展開中...');
+      const zip = await JSZip.loadAsync(zipFile);
+
+      let detectedConfig = null;
+      const mediaFiles = [];
+      let soundCount = 0;
+      let bgLoaded = false;
+
+      // エントリの走査
+      const fileEntries = [];
+      zip.forEach((relativePath, zipEntry) => {
+        if (!zipEntry.dir && !relativePath.startsWith('__MACOSX/') && !zipEntry.name.startsWith('._')) {
+          fileEntries.push(zipEntry);
+        }
+      });
+
+      for (const entry of fileEntries) {
+        const relPath = entry.name;
+        const lowerPath = relPath.toLowerCase();
+        const baseName = relPath.split('/').pop();
+
+        // 1. 設定JSON
+        if (lowerPath.endsWith('.json')) {
+          try {
+            const jsonText = await entry.async('string');
+            detectedConfig = JSON.parse(jsonText);
+          } catch (e) {
+            console.warn('Config JSON parse error in zip:', e);
+          }
+          continue;
+        }
+
+        // 2. MIMEタイプの推定
+        let mime = 'application/octet-stream';
+        if (lowerPath.endsWith('.webm')) mime = 'video/webm';
+        else if (lowerPath.endsWith('.mp4')) mime = 'video/mp4';
+        else if (lowerPath.endsWith('.png')) mime = 'image/png';
+        else if (lowerPath.endsWith('.jpg') || lowerPath.endsWith('.jpeg')) mime = 'image/jpeg';
+        else if (lowerPath.endsWith('.webp')) mime = 'image/webp';
+        else if (lowerPath.endsWith('.mp3')) mime = 'audio/mp3';
+        else if (lowerPath.endsWith('.wav')) mime = 'audio/wav';
+        else if (lowerPath.endsWith('.m4a') || lowerPath.endsWith('.aac')) mime = 'audio/mp4';
+
+        const blob = await entry.async('blob');
+        const file = new File([blob], baseName, { type: mime });
+        file.fullPathEntry = relPath;
+
+        // 3. 背景メディア
+        if (lowerPath.includes('/bg/') || lowerPath.includes('assets/bg/') || baseName.startsWith('bg_') || baseName.startsWith('background')) {
+          this.customBgFile = file;
+          const fileUrl = URL.createObjectURL(file);
+          this.txtBgFilename.textContent = file.name;
+          this.btnClearBg.style.display = 'inline-block';
+          if (file.type.startsWith('video/') || baseName.endsWith('.mp4') || baseName.endsWith('.webm')) {
+            this.bgImage.classList.remove('active');
+            this.bgImage.src = '';
+            this.bgVideo.src = fileUrl;
+            this.bgVideo.classList.add('active');
+            this.bgVideo.play().catch(() => {});
+          } else {
+            this.bgVideo.classList.remove('active');
+            this.bgVideo.pause();
+            this.bgVideo.src = '';
+            this.bgImage.src = fileUrl;
+            this.bgImage.classList.add('active');
+          }
+          bgLoaded = true;
+          continue;
+        }
+
+        // 4. カスタム音声
+        if (lowerPath.includes('/sounds/') || baseName.startsWith('sec_') || baseName.startsWith('min_') || baseName.startsWith('hour_')) {
+          if (baseName.startsWith('sec_') || lowerPath.includes('/sounds/sec_')) {
+            this.soundEngine.setCustomAudio('sec', file);
+            this.txtSoundSecName.textContent = file.name;
+            this.soundSecType = 'custom';
+            this.selectSoundSec.value = 'custom';
+            this.uploadSec.style.display = 'flex';
+            soundCount++;
+            continue;
+          } else if (baseName.startsWith('min_') || lowerPath.includes('/sounds/min_')) {
+            this.soundEngine.setCustomAudio('min', file);
+            this.txtSoundMinName.textContent = file.name;
+            this.soundMinType = 'custom';
+            this.selectSoundMin.value = 'custom';
+            this.uploadMin.style.display = 'flex';
+            soundCount++;
+            continue;
+          } else if (baseName.startsWith('hour_') || lowerPath.includes('/sounds/hour_')) {
+            this.soundEngine.setCustomAudio('hour', file);
+            this.txtSoundHourName.textContent = file.name;
+            this.soundHourType = 'custom';
+            this.selectSoundHour.value = 'custom';
+            this.uploadHour.style.display = 'flex';
+            soundCount++;
+            continue;
+          }
+        }
+
+        // 5. アニメーション素材（WebM / PNG等）
+        if (mime.startsWith('video/') || mime.startsWith('image/')) {
+          mediaFiles.push(file);
+        }
+      }
+
+      // 素材の登録
+      let animInfo = '';
+      if (mediaFiles.length > 0) {
+        const result = await this.assetManager.loadFromFolderFiles(mediaFiles);
+        if (result.detectedMode === 'webm') this.radioWebm.checked = true;
+        else this.radioPng.checked = true;
+        this.updateModeHelpText(result.detectedMode);
+        animInfo = `${result.total} 個の素材（${result.detectedMode.toUpperCase()}）`;
+      }
+
+      // 設定の復元
+      if (detectedConfig) {
+        this.applyConfig(detectedConfig, true);
+      }
+
+      this.startPreload();
+
+      const summaryParts = [];
+      if (animInfo) summaryParts.push(animInfo);
+      if (detectedConfig) summaryParts.push('設定JSON');
+      if (soundCount > 0) summaryParts.push(`音声${soundCount}件`);
+      if (bgLoaded) summaryParts.push('背景');
+
+      const summaryText = summaryParts.length > 0 ? ` (${summaryParts.join(', ')})` : '';
+      this.showToast(`ZIPパッケージ「${zipFile.name}」を正常に展開しました！${summaryText}`);
+    } catch (err) {
+      console.error('ZIP import error:', err);
+      alert('ZIPパッケージの読み込みに失敗しました: ' + err.message);
+    }
   }
 
   /**

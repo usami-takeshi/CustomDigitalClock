@@ -12,8 +12,8 @@
   <div id="drag-drop-overlay" class="drag-drop-overlay">
     <div class="drag-drop-card">
       <div class="drag-drop-icon">📥</div>
-      <h3>素材フォルダやファイルをドロップ</h3>
-      <p>assetsフォルダ、0_to_1フォルダ、WebM動画などをここに放り込んでください</p>
+      <h3>素材フォルダや作品ZIPをドロップ</h3>
+      <p>作品ZIPファイル、素材フォルダ、動画ファイルなどをここに放り込んでください（設定JSONも自動反映されます）</p>
     </div>
   </div>
 
@@ -404,27 +404,50 @@
            タブ⑤: 設定の保存・読込・共有
            ============================================================== -->
       <div class="tab-pane" id="tab-share">
+        <!-- 課題提出・作品パッケージ（ZIP一括） -->
         <div class="control-group">
-          <label class="sub-label">デザイン設定のURL共有</label>
+          <label class="sub-label">📦 課題提出・作品パッケージ (ZIP一括)</label>
+          <p class="section-help">
+            アニメーション素材と時計の表示設定を1つのZIPファイルにまとめます。学生の課題提出や作品バックアップに最適です！
+          </p>
+          <div class="action-buttons-row">
+            <button id="btn-export-package" class="btn-action" title="素材と設定を1つのZIPファイルにまとめて書き出し">
+              <span class="icon">📦</span>
+              <span>作品パッケージ保存 (.zip)</span>
+            </button>
+            <label for="input-import-package" class="btn-action btn-folder-pick" title="提出されたZIP作品パッケージを一括読み込み">
+              <span class="icon">📂</span>
+              <span>パッケージ読込 (.zip)</span>
+              <input type="file" id="input-import-package" accept=".zip" style="display:none">
+            </label>
+          </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- デザイン設定のURL共有 -->
+        <div class="control-group">
+          <label class="sub-label">🔗 デザイン設定のURL共有</label>
           <button id="btn-copy-share-url" class="btn-action" title="現在のカスタマイズ設定を含んだ共有URLをコピー">
             <span class="icon">🔗</span>
             <span>共有リンクをコピー</span>
           </button>
           <p class="section-help">
-            このリンクを共有すると、相手のブラウザでも同じレイアウト・配色・音設定で開けます。
+            設定パラメータ（サイズ・文字間隔・配色・音など）を含んだURLをコピーします。
           </p>
         </div>
 
+        <!-- 設定JSON単体の保存・読込 -->
         <div class="control-group">
-          <label class="sub-label">プリセットファイルの保存・読込</label>
+          <label class="sub-label">⚙️ 設定JSONファイル単体の保存・読込</label>
           <div class="action-buttons-row">
-            <button id="btn-export-config" class="btn-action" title="設定をJSONファイルとして保存">
+            <button id="btn-export-config" class="btn-action" title="設定のみをJSONファイルとして保存">
               <span class="icon">📥</span>
-              <span>設定を保存</span>
+              <span>設定JSONを保存</span>
             </button>
             <label for="input-import-config" class="btn-action btn-folder-pick" title="保存したJSON設定ファイルを読み込み">
               <span class="icon">📤</span>
-              <span>設定を読込</span>
+              <span>設定JSONを読込</span>
               <input type="file" id="input-import-config" accept=".json" style="display:none">
             </label>
           </div>
@@ -438,6 +461,7 @@
     </div>
   </aside>
 
+  <script src="jszip.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
